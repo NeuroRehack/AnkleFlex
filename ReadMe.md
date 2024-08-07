@@ -64,7 +64,7 @@ ssh ankleflex@ankleFlex
 enter the password: `starseng` when prompted.
 Then run the following commands to update the Raspberry Pi and install the necessary software.
 ```bash
-sudo apt update && sudo apt upgrade && sudo apt install git python3 python3-venv
+sudo apt update && sudo apt upgrade && sudo apt install git python3 python3-venv python3-pip
 ```
 
 1. **Clone the Repository:**
@@ -75,5 +75,6 @@ sudo apt update && sudo apt upgrade && sudo apt install git python3 python3-venv
 2. run the setup script:
 ```bash
 cd AnkleFlex
-./setup.sh
+chmod +x setup.sh
+sudo ./setup.sh
 ```
