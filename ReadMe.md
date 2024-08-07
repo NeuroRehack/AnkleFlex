@@ -64,7 +64,7 @@ ssh ankleflex@ankleFlex
 enter the password: `starseng` when prompted.
 Then run the following commands to update the Raspberry Pi and install the necessary software.
 ```bash
-sudo apt update && sudo apt upgrade && sudo apt install git
+sudo apt update && sudo apt upgrade && sudo apt install git python3 python3-venv
 ```
 
 1. **Clone the Repository:**
