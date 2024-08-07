@@ -1,0 +1,6 @@
+sudo nmcli device wifi hotspot con-name AnkleFlexHotspot ssid AnkleFlex password starseng
+sudo nmcli connection modify AnkleFlexHotspot autoconnect yes
+sudo nmcli connection up AnkleFlexHotspot
+
+crontab -e
+@reboot /home/ankleflex/venv/bin/python /home/ankleflex/main.py
