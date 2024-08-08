@@ -16,10 +16,10 @@ This project interfaces a Raspberry Pi with a HX711 load cell amplifier and a 5k
 
 ## Components Required
 
-1. **Raspberry Pi** (Any model with GPIO pins) [Mouser link to buys a raspberry pi](https://au.mouser.com/ProductDetail/Raspberry-Pi/SC01939?qs=T%252BzbugeAwjieYVS2HrrK%2FQ%3D%3D&src=raspberrypi)
+1. **Raspberry Pi** ([tested on model 4 B](https://au.mouser.com/ProductDetail/Raspberry-Pi/SC01939?qs=T%252BzbugeAwjieYVS2HrrK%2FQ%3D%3D&src=raspberrypi))
 2. [**HX711 Load Cell Amplifier**](https://www.sparkfun.com/products/13879)
 3. [**5kg Straight Bar Load Cell (TAL220B)**](https://www.sparkfun.com/products/14729)
-4. **Button**
+4. **Push Button**
 5. **LED**
 6. **1k Ohm Resistor**
 7. **Jumper Wires** (Female to Female)
