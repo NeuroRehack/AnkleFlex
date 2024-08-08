@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This project interfaces a Raspberry Pi with an HX711 load cell amplifier and a 5kg straight bar load cell (TAL220B) to measure weight. It also includes a button and an LED for interaction and indication purposes. The setup can be used for various applications such as digital scales, force measurement, or other load monitoring systems.
+This project interfaces a Raspberry Pi with a HX711 load cell amplifier and a 5kg straight bar load cell (TAL220B) to measure weight. It also includes a button and an LED for interaction and indication purposes. The setup can be used for various applications such as digital scales, force measurement, or other load monitoring systems.
 
 
 - [README: Raspberry Pi Load Cell Project](#readme-raspberry-pi-load-cell-project)
@@ -11,18 +11,19 @@ This project interfaces a Raspberry Pi with an HX711 load cell amplifier and a 5
   - [Setup Process](#setup-process)
     - [Hardware Setup](#hardware-setup)
     - [Raspberry Pi set up](#raspberry-pi-set-up)
+  - [Usage](#usage)
 
 
 ## Components Required
 
-1. **Raspberry Pi** (Any model with GPIO pins)
-2. **HX711 Load Cell Amplifier**
-3. **5kg Straight Bar Load Cell (TAL220B)**
+1. **Raspberry Pi** (Any model with GPIO pins) [Mouser link to buys a raspberry pi](https://au.mouser.com/ProductDetail/Raspberry-Pi/SC01939?qs=T%252BzbugeAwjieYVS2HrrK%2FQ%3D%3D&src=raspberrypi)
+2. [**HX711 Load Cell Amplifier**](https://www.sparkfun.com/products/13879)
+3. [**5kg Straight Bar Load Cell (TAL220B)**](https://www.sparkfun.com/products/14729)
 4. **Button**
 5. **LED**
 6. **1k Ohm Resistor**
-7. **Jumper Wires**
-8. **Breadboard or PCB for connections**
+7. **Jumper Wires** (Female to Female)
+8. **Breadboard or PCB for connections** (Optional)
 
 
 ## Setup Process
@@ -47,40 +48,56 @@ This project interfaces a Raspberry Pi with an HX711 load cell amplifier and a 5
 | 14   |            |       | GND          |        |                  | Negative pin |
 
 <!-- include Doc/wiring_diagram.png -->
-![Wiring Diagram](Doc/wiring_diagram.png)
+  <img src="Doc/wiring_diagram.png" alt="Wiring Diagram" width="600"/>
+
 
 ### Raspberry Pi set up
-First we need to flash the Raspberry Pi OS to a microSD card. We can use the Raspberry Pi Imager. Follow the steps in [this tutorial](https://projects.raspberrypi.org/en/projects/raspberry-pi-setting-up/2) to do this. 
-**After clicking next and before clicking Yes**, make sure to set up the WiFi connection and change the hostname to `ankleFlex`, the username to `ankleflex`, and the password to `starseng`. This will make it easier to connect to the Raspberry Pi later on. 
+**Read the following instructions carefully before proceeding.**
 
-once that is done, press save and click Yes. The Raspberry Pi Imager will flash the OS to the microSD card. Once it is done, insert the microSD card into the Raspberry Pi and power it on.
+First we need to flash the Raspberry Pi OS to a microSD card. We can use the [Raspberry Pi Imager](https://www.raspberrypi.com/software/). 
+
+To set up a Raspberry Pi using Raspberry Pi Imager, start by clicking on `CHOOSE DEVICE` and selecting `Raspberry Pi 4`. 
+
+Next, click on `CHOOSE OS`, select `Raspberry Pi OS (other)`, and then choose `Raspberry Pi OS Lite (64-bit)`. 
+
+After that, click on `CHOOSE STORAGE` and select the desired storage device. Proceed by clicking `NEXT`. When prompted with, click on `EDIT SETTINGS`. In the customization settings, set the hostname and username to `ankleflex`,  and enter the password `starseng`. 
+
+Configure the wireless LAN by entering your network's SSID and password.
+
+<strong style="color:red">Note: </strong>if you use an iphone as a hotspot, you may need to change some settings to allow the Raspberry Pi to connect to the hotspot.
+
+Save these settings by clicking `SAVE`. Finally, click `YES` to apply the customization settings.
+
+The Raspberry Pi Imager will flash the OS to the microSD card. Once it is done, insert the microSD card into the Raspberry Pi and power it on.
 
 ![Raspberry Pi Settings](Doc/raspberry_pi_settings.png)
-Next open a terminal and ssh into the Raspberry Pi. 
+
 Make sure the Raspberry Pi is connected to the same network as the computer you are using to ssh into it. 
+
+Next open a terminal (on windows use shortcut `Win + R` and type `cmd` and press enter, on mac press `Cmd + Space` and type `terminal` and press enter, on linux press `Ctrl + Alt + T`) and ssh into the Raspberry Pi using the following command: 
 ```bash
 ssh ankleflex@ankleFlex
 ```
 enter the password: `starseng` when prompted.
+
 Then run the following commands to update the Raspberry Pi and install the necessary software.
 ```bash
-sudo apt-get update
-```
-```bash
-sudo apt-get upgrade
-```
-```bash
-sudo apt-get install git python3 python3-venv python3-pip
+sudo apt update && sudo apt upgrade -y
+sudo apt-get install git python3 python3-venv python3-pip -y
 ```
 
-1. **Clone the Repository:**
-   Clone the repository to the Raspberry Pi using the following command.
-   ```bash
-   git clone https://github.com/SamiKaab/AnkleFlex
-   ```
-2. run the setup script:
+Clone the repository to the Raspberry Pi using the following command.
+```bash
+git clone https://github.com/SamiKaab/AnkleFlex
+```
+run the setup script:
 ```bash
 cd AnkleFlex
 chmod +x setup.sh
 sudo ./setup.sh
 ```
+The setup script will install the necessary libraries, set up the hotspot and set up the Raspberry Pi to run main.py on boot.
+The Raspberry Pi will reboot after the setup script is done.
+
+## Usage
+The Raspberry Pi will create a hotspot called `AnkleFlex` with the password `starseng`. Connect to the hotspot using the password and open a browser and navigate to `http://ankleflex:8050/` to access the web interface.
