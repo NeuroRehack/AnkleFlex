@@ -1,8 +1,9 @@
 # README: Raspberry Pi Load Cell Project
 
 ## Project Overview
+This project inital idea came from physiotherapists who wanted a way to visualise and measure the force exrted during ankle flexion and extension.
 
-This project interfaces a Raspberry Pi with a HX711 load cell amplifier and a 5kg straight bar load cell (TAL220B) to measure weight. It also includes a button and an LED for interaction and indication purposes. The setup can be used for various applications such as digital scales, force measurement, or other load monitoring systems.
+This project interfaces a Raspberry Pi with a HX711 load cell amplifier and a 5kg straight bar load cell (TAL220B) to measure weight. It also includes a button and an LED for interaction and indication purposes.
 
 
 - [README: Raspberry Pi Load Cell Project](#readme-raspberry-pi-load-cell-project)
@@ -75,23 +76,23 @@ The Raspberry Pi Imager will flash the OS to the microSD card. Once it is done, 
 Make sure the Raspberry Pi is connected to the same network as the computer you are using to ssh into it. 
 
 Next open a terminal (on windows use shortcut `Win + R` and type `cmd` and press enter, on mac press `Cmd + Space` and type `terminal` and press enter, on linux press `Ctrl + Alt + T`) and ssh into the Raspberry Pi using the following command: 
-```bash
+```shell
 ssh ankleflex@ankleFlex
 ```
 enter the password: `starseng` when prompted.
 
 Then run the following commands to update the Raspberry Pi and install the necessary software.
-```bash
+```shell
 sudo apt update && sudo apt upgrade -y
 sudo apt-get install git python3 python3-venv python3-pip -y
 ```
 
 Clone the repository to the Raspberry Pi using the following command.
-```bash
+```shell
 git clone https://github.com/SamiKaab/AnkleFlex
 ```
 run the setup script:
-```bash
+```shell
 cd AnkleFlex
 chmod +x setup.sh
 sudo ./setup.sh
@@ -100,4 +101,9 @@ The setup script will install the necessary libraries, set up the hotspot and se
 The Raspberry Pi will reboot after the setup script is done.
 
 ## Usage
-The Raspberry Pi will create a hotspot called `AnkleFlex` with the password `starseng`. Connect to the hotspot using the password and open a browser and navigate to `http://ankleflex:8050/` to access the web interface.
+Boot up the Raspberry Pi.The Raspberry Pi will create a hotspot called `AnkleFlex` with the password `starseng`.
+Once the LED on the Raspberry Pi is solid, the Raspberry Pi is ready to be used.
+Connect to the hotspot using the password and open a browser and navigate to `http://ankleflex:8050/` to access the web interface.
+
+To Tare the device, press the button <strong style="color:red">once</strong>. 
+If the program becomes unresponsive, press the button <strong style="color:red">twice</strong> within a second to restart device.
