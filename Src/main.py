@@ -5,8 +5,8 @@ from dash import html, dcc
 from dash.dependencies import Input, Output
 import plotly.express as px
 import time
-import RPi.GPIO as GPIO # pip
-from hx711 import HX711  # Make sure to install the hx711 library
+import RPi.GPIO as GPIO # Import Raspberry Pi GPIO library
+from hx711 import HX711 
 import threading
 import queue
 import os
@@ -52,6 +52,10 @@ CALIBRATION_FACTOR = -1554  # This value is obtained using the calibration scrip
 # set log level for webapp
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
+
+############################################################################################################
+# Section for the LoadCell class
+############################################################################################################
 
 class LoadCell():
     def __init__(self):
@@ -101,7 +105,11 @@ class LoadCell():
     def cleanup(self):
         self.hx711.power_down()
         GPIO.cleanup()
-            
+        
+        
+############################################################################################################
+# Section for the button class
+############################################################################################################  
             
 class Button():
     def __init__(self,loadcell):
@@ -145,6 +153,11 @@ class Button():
             self.last_mode = -1
             self.mode = 0
         self.last_time_pressed = time.time()
+        
+        
+############################################################################################################
+# section for the dash app
+############################################################################################################
 
 maxWeight = 0.00000001
 minWeight = -0.00000001
@@ -173,6 +186,9 @@ def update_graph(n):
     fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))  # Remove margins to fill the graph area
     return fig
 
+############################################################################################################
+# end of dash app   
+############################################################################################################
         
 
 if __name__ == '__main__':
