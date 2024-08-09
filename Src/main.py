@@ -49,6 +49,10 @@ CALIBRATION_FACTOR = -1554  # This value is obtained using the calibration scrip
 
 # GPIO.setwarnings(False)
 
+maxWeight = 0.00000001
+minWeight = -0.00000001
+weight = 0
+
 # set log level for webapp
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -134,6 +138,10 @@ class Button():
                     ledBlinkThread = threading.Thread(target=led.blink_led)
                     ledBlinkThread.start()
                     self.loadcell.offset = self.loadcell.get_offset()
+                    global maxWeight, minWeight
+                    maxWeight = 0.00000001
+                    minWeight = -0.00000001
+                    
                     ledBlinkThread.join()
                 elif self.mode == 1:
                     led.turn_off_led()
@@ -159,9 +167,7 @@ class Button():
 # section for the dash app
 ############################################################################################################
 
-maxWeight = 0.00000001
-minWeight = -0.00000001
-weight = 0
+
 
 app = dash.Dash(__name__)
 

@@ -67,6 +67,8 @@ Configure the wireless LAN by entering your network's SSID and password.
 
 <strong style="color:red">Note: </strong>if you use an iphone as a hotspot, you may need to change some settings to allow the Raspberry Pi to connect to the hotspot.
 
+Next go to `SERVICES` and enable `SSH`.
+
 Save these settings by clicking `SAVE`. Finally, click `YES` to apply the customization settings.
 
 The Raspberry Pi Imager will flash the OS to the microSD card. Once it is done, insert the microSD card into the Raspberry Pi and power it on.
@@ -77,7 +79,7 @@ Make sure the Raspberry Pi is connected to the same network as the computer you 
 
 Next open a terminal (on windows use shortcut `Win + R` and type `cmd` and press enter, on mac press `Cmd + Space` and type `terminal` and press enter, on linux press `Ctrl + Alt + T`) and ssh into the Raspberry Pi using the following command: 
 ```shell
-ssh ankleflex@ankleFlex
+ssh ankleflex@ankleflex.local
 ```
 enter the password: `starseng` when prompted.
 
