@@ -1,7 +1,7 @@
 # README: Raspberry Pi Load Cell Project
 
 ## Project Overview
-This project inital idea came from physiotherapists who wanted a way to visualise and measure the force exrted during ankle flexion and extension.
+This project's inital idea came from physiotherapists who wanted a way to visualise and measure the force exrted during ankle flexion and extension.
 
 This project interfaces a Raspberry Pi with a HX711 load cell amplifier and a 5kg straight bar load cell (TAL220B) to measure weight. It also includes a button and an LED for interaction and indication purposes.
 
