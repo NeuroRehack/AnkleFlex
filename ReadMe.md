@@ -84,6 +84,8 @@ enter the password: `starseng` when prompted.
 Then run the following commands to update the Raspberry Pi and install the necessary software.
 ```shell
 sudo apt update && sudo apt upgrade -y
+```
+```shell
 sudo apt-get install git python3 python3-venv python3-pip -y
 ```
 
@@ -93,9 +95,7 @@ git clone https://github.com/SamiKaab/AnkleFlex
 ```
 run the setup script:
 ```shell
-cd AnkleFlex
-chmod +x setup.sh
-sudo ./setup.sh
+cd AnkleFlex && chmod +x setup.sh && ./setup.sh
 ```
 The setup script will install the necessary libraries, set up the hotspot and set up the Raspberry Pi to run main.py on boot.
 The Raspberry Pi will reboot after the setup script is done.

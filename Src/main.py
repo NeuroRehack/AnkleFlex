@@ -183,6 +183,31 @@ def update_graph(n):
     maxWeight = max(maxWeight, weight)
 
     fig = px.bar(x=['Weight'], y=[weight], title='Weight (kg)', range_y=[minWeight, maxWeight])
+    
+    # add horizontal line  max weight
+    fig.add_shape(
+        type="line",
+        x0=-0.5,
+        y0=maxWeight,
+        x1=0.5,
+        y1=maxWeight,
+        line=dict(
+            color="Red",
+            width=3
+        )
+    )
+    # add horizontal line  min weight
+    fig.add_shape(
+        type="line",
+        x0=-0.5,
+        y0=minWeight,
+        x1=0.5,
+        y1=minWeight,
+        line=dict(
+            color="red",
+            width=3
+        )
+    )
     fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))  # Remove margins to fill the graph area
     return fig
 
