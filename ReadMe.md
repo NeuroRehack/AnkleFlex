@@ -105,7 +105,7 @@ The Raspberry Pi will reboot after the setup script is done.
 ## Usage
 Boot up the Raspberry Pi.The Raspberry Pi will create a hotspot called `AnkleFlex` with the password `starseng`.
 Once the LED on the Raspberry Pi is solid, the Raspberry Pi is ready to be used.
-Connect to the hotspot using the password and open a browser and navigate to `http://ankleflex:8050/` to access the web interface.
+Connect to the hotspot using the password and open a browser and navigate to `http://ankleflex.local:8050/` to access the web interface.
 
 To Tare the device, press the button <strong style="color:red">once</strong>. 
 If the program becomes unresponsive, press the button <strong style="color:red">twice</strong> within a second to restart device.
