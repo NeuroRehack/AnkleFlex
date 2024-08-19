@@ -93,7 +93,7 @@ sudo apt-get install git python3 python3-venv python3-pip -y
 
 Clone the repository to the Raspberry Pi using the following command.
 ```shell
-git clone https://github.com/SamiKaab/AnkleFlex
+git clone https://github.com/NeuroRehack/AnkleFlex.git
 ```
 run the setup script:
 ```shell
