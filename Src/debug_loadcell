@@ -6,10 +6,7 @@ import RPi.GPIO as GPIO
 LOADCELL_DOUT_PIN = 2  # GPIO 2 (Board pin 3)
 LOADCELL_SCK_PIN = 3   # GPIO 3 (Board pin 5)
 
-# Calibration factor (adjust this to match your calibration)
-CALIBRATION_FACTOR = -1554
-
-def setup_loadcell():
+def main():
     hx = HX711(
         dout_pin=LOADCELL_DOUT_PIN,
         pd_sck_pin=LOADCELL_SCK_PIN,
@@ -17,33 +14,11 @@ def setup_loadcell():
         gain=64
     )
     hx.reset()
-    offset = get_offset(hx)
-    return hx, offset
-
-def get_offset(hx, times=5):
-    measures = []
-    print("Calibrating...")
-    while len(measures) < times:
-        data = hx._read()
-        if data not in [False, -1]:
-            measures.append(data)
-            print(f"Reading {len(measures)} of {times}")
-    return sum(measures) / len(measures)
-
-def get_weight(hx, offset):
-    data = hx._read()
-    if data in [False, -1]:
-        return None
-    return (data - offset) / CALIBRATION_FACTOR
-
-def main():
-    hx, offset = setup_loadcell()
-    print("Starting load cell readings. Press Ctrl+C to stop.")
+    print("Printing raw load cell readings every 0.5 seconds (Ctrl+C to stop):")
     try:
         while True:
-            weight = get_weight(hx, offset)
-            if weight is not None:
-                print(f"Weight: {weight:.3f} kg")
+            value = hx._read()
+            print(f"Raw value: {value}")
             time.sleep(0.5)
     except KeyboardInterrupt:
         print("\nExiting...")
