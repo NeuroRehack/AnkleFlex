@@ -15,11 +15,19 @@ def main():
     )
     hx.reset()
     print("Printing raw load cell readings every 0.5 seconds (Ctrl+C to stop):")
+    count=0
     try:
         while True:
-            value = hx._read()
-            print(f"Raw value: {value}")
-            time.sleep(0.5)
+            if not(hx._ready()):
+                print(hx._ready())    
+            # if hx._ready():
+            #     #raw_value = hx.get_raw_data()
+            #     read_value = hx._read()
+            #     count += 1
+            #     print(f"[{count}]")
+            #     #print(f"Raw value: {raw_value}")
+            #     print(f"Read value: {read_value}")
+            # time.sleep(0.01)
     except KeyboardInterrupt:
         print("\nExiting...")
         hx.power_down()

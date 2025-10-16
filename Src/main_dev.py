@@ -1,5 +1,4 @@
-# create a dashplotly app to visualize the data as a bar chart
-# pip install dash pandas RPi.GPIO hx711 
+
 import dash 
 from dash import html, dcc
 from dash.dependencies import Input, Output
@@ -81,7 +80,7 @@ class LoadCell():
             print('Error initializing')
             led.turn_off_led()
             self.cleanup()
-            os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main.py')
+            os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main_dev.py')
             exit()
             return
         
@@ -90,7 +89,7 @@ class LoadCell():
             print('Error initializing')
             led.turn_off_led()
             self.cleanup()
-            os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main.py')
+            os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main_dev.py')
             exit()
             return
         
