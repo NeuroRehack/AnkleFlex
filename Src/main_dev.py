@@ -216,7 +216,28 @@ def update_graph(n):
     if weight > THRESHOLD_UP:
         above_threshold_count += 1
     elif weight < THRESHOLD_DOWN:
-        below_threshold_count += 1
+
+     # Initialize lists the first time
+    if 'timestamps' not in globals():
+        global timestamps, data_points
+        timestamps = []
+        data_points = []
+
+    # Append new data # Create line chart
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=timestamps,
+        y=data_points,
+        mode='lines+markers',
+        name='Weight (kg)',
+        line=dict(width=2)
+    ))
+    timestamps.append(time.strftime('%H:%M:%S'))
+    data_points.append(weight)
+
+    # Limit list length (keep last 100 points)
+    timestamps[:] = timestamps[-100:]
+    data_points[:] = data_points[-100:]
 
     # Create line chart
     fig = go.Figure()
@@ -225,7 +246,7 @@ def update_graph(n):
         y=data_points,
         mode='lines+markers',
         name='Weight (kg)',
-        line=dict(width=2)
+        line=dict(width=2, color='green')
     ))
 
     # Threshold lines
@@ -246,7 +267,7 @@ def update_graph(n):
 
     # Dynamic Y-axis range
     y_min = min(minWeight*1.1, THRESHOLD_DOWN*1.5)
-    y_max = max(maxWeight*1.1, THRESHOLredD_UP*1.5)
+    y_max = max(maxWeight*1.1, THRESHOLD_UP*1.5)
 
     fig.update_layout(
         title='Weight (kg) with Threshold Zones',
