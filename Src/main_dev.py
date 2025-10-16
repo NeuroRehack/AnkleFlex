@@ -218,17 +218,18 @@ def update_graph(n):
     elif weight < THRESHOLD_DOWN:
         below_threshold_count += 1
 
-    # Use go.Figure instead of px.bar for more control
+    # Create line chart
     fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=['Weight'],
-        y=[weight],
-        name='Current Weight',
-        marker_color='green'
+    fig.add_trace(go.Scatter(
+        x=timestamps,
+        y=data_points,
+        mode='lines+markers',
+        name='Weight (kg)',
+        line=dict(width=2)
     ))
 
     # Threshold lines
-    fig.add_hline(y=THRESHOLD_UP, line_dash='dot', line_color='red',
+    fig.add_hline(y=THRESHOLD_UP, line_dash='dot', line_color='blue',
                   annotation_text='+500 Threshold', annotation_position='top left')
     fig.add_hline(y=THRESHOLD_DOWN, line_dash='dot', line_color='blue',
                   annotation_text='-500 Threshold', annotation_position='bottom left')
@@ -237,7 +238,7 @@ def update_graph(n):
     fig.add_shape(type='rect',
                   xref='paper', yref='y',
                   x0=0, x1=1, y0=THRESHOLD_UP, y1=max(THRESHOLD_UP*1.5, weight, 800),
-                  fillcolor='red', opacity=0.1, line_width=0)
+                  fillcolor='green', opacity=0.1, line_width=0)
     fig.add_shape(type='rect',
                   xref='paper', yref='y',
                   x0=0, x1=1, y0=min(THRESHOLD_DOWN*1.5, weight, -800), y1=THRESHOLD_DOWN,
@@ -245,7 +246,7 @@ def update_graph(n):
 
     # Dynamic Y-axis range
     y_min = min(minWeight*1.1, THRESHOLD_DOWN*1.5)
-    y_max = max(maxWeight*1.1, THRESHOLD_UP*1.5)
+    y_max = max(maxWeight*1.1, THRESHOLredD_UP*1.5)
 
     fig.update_layout(
         title='Weight (kg) with Threshold Zones',

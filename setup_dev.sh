@@ -24,4 +24,8 @@ fi
 # Activate the virtual environment and run the development script
 echo "Activating AnkleFlex development environment"
 source /home/ankleflex/AnkleFlex/venv/bin/activate
-python /home/ankleflex/AnkleFlex/Src/main_dev.py
+
+
+# Kill all active Python processes
+echo "Stopping all running Python processes..."
+sudo pkill -f python || true
