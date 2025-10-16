@@ -167,54 +167,99 @@ class Button():
 # section for the dash app
 ############################################################################################################
 
-
 app = dash.Dash(__name__)
+
+# Threshold constants
+THRESHOLD_UP = 500
+THRESHOLD_DOWN = -500
+
+# Counters
+above_threshold_count = 0
+below_threshold_count = 0
 
 app.layout = html.Div([
     dcc.Interval(id='interval', interval=500, n_intervals=0),
-    dcc.Graph(id='graph', style={'height': '90vh', 'width': '98vw'})  # Adjust the graph size here
-], style={'height': '100vh', 'width': '100vw', 'display': 'flex', 'justify-content': 'center', 'align-items': 'center'})  # This makes the div fill the window
+    html.Div([
+        html.Div(id='above-count', style={'font-size': '20px', 'margin': '10px'}),
+        html.Div(id='below-count', style={'font-size': '20px', 'margin': '10px'})
+    ], style={'display': 'flex', 'justify-content': 'center'}),
+    dcc.Graph(id='graph', style={'height': '85vh', 'width': '98vw'})
+], style={
+    'height': '100vh',
+    'width': '100vw',
+    'display': 'flex',
+    'flex-direction': 'column',
+    'align-items': 'center'
+})
 
 @app.callback(
-    Output('graph', 'figure'),
+    [Output('graph', 'figure'),
+     Output('above-count', 'children'),
+     Output('below-count', 'children')],
     Input('interval', 'n_intervals')
 )
 def update_graph(n):
-    global loadcell, maxWeight, minWeight
+    global loadcell, maxWeight, minWeight, above_threshold_count, below_threshold_count
+
     data = loadcell.get_weight()
     if data not in [False, -1]:
         weight = data
+    else:
+        weight = 0
+
     minWeight = min(minWeight, weight)
     maxWeight = max(maxWeight, weight)
 
-    fig = px.bar(x=['Weight'], y=[weight], title='Weight (kg)', range_y=[minWeight*1.1, maxWeight*1.1])
-    
-    # add horizontal line  max weight
-    fig.add_shape(
-        type="line",
-        x0=-0.5,
-        y0=maxWeight,
-        x1=0.5,
-        y1=maxWeight,
-        line=dict(
-            color="Red",
-            width=3
-        )
+    # Update counters
+    if weight > THRESHOLD_UP:
+        above_threshold_count += 1
+    elif weight < THRESHOLD_DOWN:
+        below_threshold_count += 1
+
+    # Use go.Figure instead of px.bar for more control
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=['Weight'],
+        y=[weight],
+        name='Current Weight',
+        marker_color='green'
+    ))
+
+    # Threshold lines
+    fig.add_hline(y=THRESHOLD_UP, line_dash='dot', line_color='red',
+                  annotation_text='+500 Threshold', annotation_position='top left')
+    fig.add_hline(y=THRESHOLD_DOWN, line_dash='dot', line_color='blue',
+                  annotation_text='-500 Threshold', annotation_position='bottom left')
+
+    # Highlight zones
+    fig.add_shape(type='rect',
+                  xref='paper', yref='y',
+                  x0=0, x1=1, y0=THRESHOLD_UP, y1=max(THRESHOLD_UP*1.5, weight, 800),
+                  fillcolor='red', opacity=0.1, line_width=0)
+    fig.add_shape(type='rect',
+                  xref='paper', yref='y',
+                  x0=0, x1=1, y0=min(THRESHOLD_DOWN*1.5, weight, -800), y1=THRESHOLD_DOWN,
+                  fillcolor='blue', opacity=0.1, line_width=0)
+
+    # Dynamic Y-axis range
+    y_min = min(minWeight*1.1, THRESHOLD_DOWN*1.5)
+    y_max = max(maxWeight*1.1, THRESHOLD_UP*1.5)
+
+    fig.update_layout(
+        title='Weight (kg) with Threshold Zones',
+        yaxis_title='Weight (kg)',
+        xaxis_title='',
+        showlegend=False,
+        template='plotly_white',
+        margin=dict(l=0, r=0, t=30, b=0),
+        yaxis=dict(range=[y_min, y_max])
     )
-    # add horizontal line  min weight
-    fig.add_shape(
-        type="line",
-        x0=-0.5,
-        y0=minWeight,
-        x1=0.5,
-        y1=minWeight,
-        line=dict(
-            color="red",
-            width=3
-        )
+
+    return (
+        fig,
+        f"Above +500 count: {above_threshold_count}",
+        f"Below -500 count: {below_threshold_count}"
     )
-    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))  # Remove margins to fill the graph area
-    return fig
 
 ############################################################################################################
 # end of dash app   
