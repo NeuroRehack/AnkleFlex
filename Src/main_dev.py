@@ -216,6 +216,7 @@ def update_graph(n):
     if weight > THRESHOLD_UP:
         above_threshold_count += 1
     elif weight < THRESHOLD_DOWN:
+        below_threshold_count += 1
 
      # Initialize lists the first time
     if 'timestamps' not in globals():
