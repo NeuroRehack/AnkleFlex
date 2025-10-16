@@ -15,6 +15,8 @@ from tqdm import tqdm
 from flask import request
 import led
 
+import plotly.graph_objects as go 
+
 def shutdown_server():
     func = request.environ.get('werkzeug.server.shutdown')
     if func is None:
