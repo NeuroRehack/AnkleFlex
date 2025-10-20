@@ -5,7 +5,7 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import time
 import RPi.GPIO as GPIO # Import Raspberry Pi GPIO library
-from hx711 import HX711 
+from hx711v0_5_1 import HX711 
 import threading
 import queue
 import os
@@ -47,6 +47,7 @@ BUTTON_PIN = 17  # GPIO 17 Board pin 11
 
 # Calibration factor
 CALIBRATION_FACTOR = -1554  # This value is obtained using the calibration script
+REFERENCE_UNIT = -1554   # adjust after calibration
 
 # GPIO.setwarnings(False)
 
@@ -62,55 +63,78 @@ log.setLevel(logging.ERROR)
 # Section for the LoadCell class
 ############################################################################################################
 
-class LoadCell():
+class LoadCell:
     def __init__(self):
-        print('Initializing LoadCell...')
-        self.hx711 = HX711(
-            dout_pin=LOADCELL_DOUT_PIN,
-            pd_sck_pin=LOADCELL_SCK_PIN,
-            channel='A',
-            gain=64
-        )
+        print("[INFO] Initializing LoadCell...")
+        self.hx = HX711(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN)
         self.ready = False
-        
-    def initialize(self):
-        print('Calibrating...')
-        state = run_with_timeout(self.hx711.reset,15)
-        if state == -1:
-            print('Error initializing')
-            led.turn_off_led()
-            self.cleanup()
-            os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main_dev.py')
-            exit()
-            return
-        
-        self.offset = run_with_timeout(self.get_offset, 15)
-        if self.offset == -1:
-            print('Error initializing')
-            led.turn_off_led()
-            self.cleanup()
-            os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main_dev.py')
-            exit()
-            return
-        
+        self.offset = 0
+        self.reference_unit = REFERENCE_UNIT
 
-    def get_offset(self, times=5):
-        measures = []
-        while len(measures) < times:
-            data = self.hx711._read()
-            if data not in [False, -1]:
-                measures.append(data)
-                print('*'*len(measures))
-        return sum(measures) / len(measures)
+    def initialize(self):
+        print("[INFO] Calibrating and setting up HX711...")
+        try:
+            # Set reading format
+            self.hx.setReadingFormat("MSB", "MSB")
+
+            # Automatically set offset
+            print("[INFO] Automatically setting the offset.")
+            self.hx.autosetOffset()
+            self.offset = self.hx.getOffset()
+            print(f"[INFO] Offset set to: {self.offset}")
+
+            # Set reference unit
+            print(f"[INFO] Setting reference unit: {self.reference_unit}")
+            self.hx.setReferenceUnit(self.reference_unit)
+
+            print("[INFO] HX711 ready. You can add weight now.")
+            self.ready = True
+
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize LoadCell: {e}")
+            self.cleanup()
+            led.turn_off_led()
+            os.system('/home/ankleflex/ankleflex-venv/bin/python /home/ankleflex/AnkleFlex/Src/main_dev.py')
+            sys.exit()
 
     def get_weight(self):
-        measures = self.hx711._read()
-        return (measures - self.offset) / CALIBRATION_FACTOR
+        if not self.ready:
+            print("[WARN] LoadCell not ready.")
+            return 0
+        
+        try:
+            # Read raw bytes and compute weight
+            raw_bytes = self.hx.getRawBytes()
+            weight_grams = self.hx.rawBytesToWeight(raw_bytes)
+            return round(weight_grams, 2)
+        except Exception as e:
+            print(f"[ERROR] Could not read weight: {e}")
+            return 0
+
+    def get_offset(self):
+        # Return the current offset for reference
+        try:
+            return self.hx.getOffset()
+        except Exception as e:
+            print(f"[ERROR] Could not get offset: {e}")
+            return 0
+
+    def tare(self):
+        print("[INFO] Taring load cell...")
+        try:
+            self.hx.autosetOffset()
+            self.offset = self.hx.getOffset()
+            print(f"[INFO] New offset: {self.offset}")
+        except Exception as e:
+            print(f"[ERROR] Tare failed: {e}")
 
     def cleanup(self):
-        self.hx711.power_down()
+        print("[INFO] Cleaning up GPIO and HX711...")
         GPIO.cleanup()
-        
+        try:
+            self.hx.powerDown()
+        except Exception:
+            pass
         
 ############################################################################################################
 # Section for the button class
@@ -174,12 +198,15 @@ app = dash.Dash(__name__)
 THRESHOLD_UP = 500
 THRESHOLD_DOWN = -500
 
+#Limit for list length 
+listLength=60
+
 # Counters
 above_threshold_count = 0
 below_threshold_count = 0
 
 app.layout = html.Div([
-    dcc.Interval(id='interval', interval=500, n_intervals=0),
+    dcc.Interval(id='interval', interval=1000, n_intervals=0),
     html.Div([
         html.Div(id='above-count', style={'font-size': '20px', 'margin': '10px'}),
         html.Div(id='below-count', style={'font-size': '20px', 'margin': '10px'})
@@ -229,23 +256,22 @@ def update_graph(n):
         x=timestamps,
         y=data_points,
         mode='lines+markers',
-        name='Weight (kg)',
+        name='Weight',
         line=dict(width=2)
     ))
     timestamps.append(time.strftime('%H:%M:%S'))
     data_points.append(weight)
 
-    # Limit list length (keep last 100 points)
-    timestamps[:] = timestamps[-100:]
-    data_points[:] = data_points[-100:]
+    # Limit list length 
+    timestamps[:] = timestamps[-listLength:]
+    data_points[:] = data_points[-listLength:]
 
     # Create line chart
-    fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=timestamps,
         y=data_points,
         mode='lines+markers',
-        name='Weight (kg)',
+        name='Weight',
         line=dict(width=2, color='green')
     ))
 
@@ -258,11 +284,11 @@ def update_graph(n):
     # Highlight zones
     fig.add_shape(type='rect',
                   xref='paper', yref='y',
-                  x0=0, x1=1, y0=THRESHOLD_UP, y1=max(THRESHOLD_UP*1.5, weight, 800),
+                  x0=0, x1=1, y0=THRESHOLD_UP, y1=max(THRESHOLD_UP*1.5, weight, 1500),
                   fillcolor='green', opacity=0.1, line_width=0)
     fig.add_shape(type='rect',
                   xref='paper', yref='y',
-                  x0=0, x1=1, y0=min(THRESHOLD_DOWN*1.5, weight, -800), y1=THRESHOLD_DOWN,
+                  x0=0, x1=1, y0=min(THRESHOLD_DOWN*1.5, weight, -1500), y1=THRESHOLD_DOWN,
                   fillcolor='blue', opacity=0.1, line_width=0)
 
     # Dynamic Y-axis range
@@ -270,8 +296,8 @@ def update_graph(n):
     y_max = max(maxWeight*1.1, THRESHOLD_UP*1.5)
 
     fig.update_layout(
-        title='Weight (kg) with Threshold Zones',
-        yaxis_title='Weight (kg)',
+        title='Weight with Threshold Zones',
+        yaxis_title='Weight ',
         xaxis_title='',
         showlegend=False,
         template='plotly_white',
