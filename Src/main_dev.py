@@ -284,11 +284,11 @@ def update_graph(n):
     # Highlight zones
     fig.add_shape(type='rect',
                   xref='paper', yref='y',
-                  x0=0, x1=1, y0=THRESHOLD_UP, y1=max(THRESHOLD_UP*1.5, weight, 1500),
+                  x0=0, x1=1, y0=THRESHOLD_UP, y1=5000,
                   fillcolor='green', opacity=0.1, line_width=0)
     fig.add_shape(type='rect',
                   xref='paper', yref='y',
-                  x0=0, x1=1, y0=min(THRESHOLD_DOWN*1.5, weight, -1500), y1=THRESHOLD_DOWN,
+                  x0=0, x1=1, y0=-5000, y1=THRESHOLD_DOWN,
                   fillcolor='blue', opacity=0.1, line_width=0)
 
     # Dynamic Y-axis range
