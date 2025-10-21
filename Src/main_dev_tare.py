@@ -94,7 +94,7 @@ class LoadCell:
             print(f"[ERROR] Failed to initialize LoadCell: {e}")
             self.cleanup()
             led.turn_off_led()
-            os.system('/home/ankleflex/ankleflex-venv/bin/python /home/ankleflex/AnkleFlex/Src/main_dev.py')
+            os.system('/home/ankleflex/ankleflex-venv/bin/python /home/ankleflex/AnkleFlex/Src/main_dev_tare.py')
             sys.exit()
 
     def get_weight(self):
