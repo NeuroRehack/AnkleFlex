@@ -198,8 +198,8 @@ app = dash.Dash(__name__)
 THRESHOLD_UP = 500
 THRESHOLD_DOWN = -500
 
-#Limit for list length 
-listLength=60
+# Limit for list length 
+listLength = 60
 
 # Counters
 above_threshold_count = 0
@@ -207,6 +207,19 @@ below_threshold_count = 0
 
 app.layout = html.Div([
     dcc.Interval(id='interval', interval=1000, n_intervals=0),
+    html.Div([
+        html.Button('Tare Load Cell', id='tare-button', n_clicks=0, style={
+            'padding': '10px 20px',
+            'font-size': '16px',
+            'margin': '10px',
+            'background-color': '#007BFF',
+            'color': 'white',
+            'border': 'none',
+            'border-radius': '5px',
+            'cursor': 'pointer'
+        }),
+        html.Div(id='tare-status', style={'font-size': '16px', 'margin': '10px', 'color': 'green'})
+    ], style={'display': 'flex', 'justify-content': 'center'}),
     html.Div([
         html.Div(id='above-count', style={'font-size': '20px', 'margin': '10px'}),
         html.Div(id='below-count', style={'font-size': '20px', 'margin': '10px'})
@@ -238,35 +251,23 @@ def update_graph(n):
     minWeight = min(minWeight, weight)
     maxWeight = max(maxWeight, weight)
 
-    # Update counters
     if weight > THRESHOLD_UP:
         above_threshold_count += 1
     elif weight < THRESHOLD_DOWN:
         below_threshold_count += 1
 
-     # Initialize lists the first time
     if 'timestamps' not in globals():
         global timestamps, data_points
         timestamps = []
         data_points = []
 
-    # Append new data # Create line chart
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=timestamps,
-        y=data_points,
-        mode='lines+markers',
-        name='Weight',
-        line=dict(width=2)
-    ))
     timestamps.append(time.strftime('%H:%M:%S'))
     data_points.append(weight)
 
-    # Limit list length 
     timestamps[:] = timestamps[-listLength:]
     data_points[:] = data_points[-listLength:]
 
-    # Create line chart
+    fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=timestamps,
         y=data_points,
@@ -275,13 +276,11 @@ def update_graph(n):
         line=dict(width=2, color='green')
     ))
 
-    # Threshold lines
     fig.add_hline(y=THRESHOLD_UP, line_dash='dot', line_color='blue',
                   annotation_text='+500 Threshold', annotation_position='top left')
     fig.add_hline(y=THRESHOLD_DOWN, line_dash='dot', line_color='blue',
                   annotation_text='-500 Threshold', annotation_position='bottom left')
 
-    # Highlight zones
     fig.add_shape(type='rect',
                   xref='paper', yref='y',
                   x0=0, x1=1, y0=THRESHOLD_UP, y1=5000,
@@ -291,26 +290,40 @@ def update_graph(n):
                   x0=0, x1=1, y0=-5000, y1=THRESHOLD_DOWN,
                   fillcolor='blue', opacity=0.1, line_width=0)
 
-    # Dynamic Y-axis range
-    y_min = min(minWeight*1.1, THRESHOLD_DOWN*1.5)
-    y_max = max(maxWeight*1.1, THRESHOLD_UP*1.5)
+    y_min = min(minWeight * 1.1, THRESHOLD_DOWN * 1.5)
+    y_max = max(maxWeight * 1.1, THRESHOLD_UP * 1.5)
 
     fig.update_layout(
         title='Weight with Threshold Zones',
-        yaxis_title='Weight ',
+        yaxis_title='Weight',
         xaxis_title='',
         showlegend=False,
         template='plotly_white',
         margin=dict(l=0, r=0, t=30, b=0),
         yaxis=dict(range=[y_min, y_max])
     )
-    #
 
     return (
         fig,
         f"Above +500 count: {above_threshold_count}",
         f"Below -500 count: {below_threshold_count}"
     )
+
+
+# New callback for Tare button
+@app.callback(
+    Output('tare-status', 'children'),
+    Input('tare-button', 'n_clicks')
+)
+def tare_load_cell(n_clicks):
+    if n_clicks > 0:
+        try:
+            loadcell.tare()
+            return f"Tare complete at {time.strftime('%H:%M:%S')}"
+        except Exception as e:
+            return f"Tare failed: {e}"
+    return ""
+
 
 ############################################################################################################
 # end of dash app   
