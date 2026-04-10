@@ -27,6 +27,10 @@
 
     <div id="controls">
       <button id="tare-btn" onclick="tare()">Tare / Reset</button>
+      <label id="flip-label">
+        <input type="checkbox" id="flip-axis" onchange="toggleAxisFlip(this.checked)">
+        Flip axis
+      </label>
     </div>
 
     <!-- Shown only in emulation mode (controlled by SSE state.emulation) -->

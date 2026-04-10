@@ -7,7 +7,11 @@
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let appState = { weight: 0, min_weight: 0, max_weight: 0, emulation: false };
+let axisFlipped = false;
 let chart = null;
+
+// Returns the value with axis direction applied.
+function displayValue(v) { return axisFlipped ? -v : v; }
 
 // ── Custom Chart.js plugin: horizontal reference lines ────────────────────────
 const refLinesPlugin = {
@@ -15,6 +19,18 @@ const refLinesPlugin = {
   afterDraw(ch) {
     const { ctx, chartArea, scales } = ch;
     const yScale = scales.y;
+
+    // Always draw a solid zero baseline
+    const zeroPx = yScale.getPixelForValue(0);
+    ctx.save();
+    ctx.strokeStyle = "rgba(0,0,0,1)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(chartArea.left, zeroPx);
+    ctx.lineTo(chartArea.right, zeroPx);
+    ctx.stroke();
+    ctx.restore();
+
     const hasMeasured = appState.max_weight !== 0 || appState.min_weight !== 0;
     if (!hasMeasured) return;
 
@@ -36,9 +52,9 @@ const refLinesPlugin = {
       ctx.restore();
     }
 
-    drawLine(appState.max_weight, "#e63946", "MAX");
+    drawLine(displayValue(appState.max_weight), "#e63946", "MAX");
     if (appState.min_weight !== 0) {
-      drawLine(appState.min_weight, "#f4a261", "MIN");
+      drawLine(displayValue(appState.min_weight), "#f4a261", "MIN");
     }
   },
 };
@@ -99,10 +115,12 @@ function initChart() {
 // ── Chart update ─────────────────────────────────────────────────────────────
 function updateChart() {
   if (!chart) return;
-  const w = appState.weight;
-  const peak = Math.max(Math.abs(appState.max_weight), Math.abs(appState.min_weight), 1);
-  const yMax = Math.ceil(peak * 1.25);
-  const yMin = appState.min_weight < 0 ? Math.floor(appState.min_weight * 1.25) : 0;
+  const w = displayValue(appState.weight);
+  const dMax = displayValue(appState.max_weight);
+  const dMin = displayValue(appState.min_weight);
+  const peak = Math.max(Math.abs(dMax), Math.abs(dMin), 1);
+  const yMax = Math.ceil(Math.max(dMax, dMin, w, 0) * 1.25 || peak * 1.25);
+  const yMin = Math.floor(Math.min(dMax, dMin, w, 0) * 1.25);
 
   chart.data.datasets[0].data = [w];
   chart.options.scales.y.max = yMax;
@@ -113,7 +131,7 @@ function updateChart() {
 // ── DOM updates ───────────────────────────────────────────────────────────────
 function updateWeightDisplay() {
   document.getElementById("weight-value").textContent =
-    appState.weight.toFixed(1);
+    displayValue(appState.weight).toFixed(1);
 }
 
 function updateEmulationPanel() {
@@ -166,6 +184,13 @@ function setEmulatedWeight(value) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ weight: v }),
   }).catch((err) => console.error("Set emulated weight failed:", err));
+}
+
+// ── Axis flip ─────────────────────────────────────────────────────────────────
+function toggleAxisFlip(checked) {
+  axisFlipped = checked;
+  updateWeightDisplay();
+  updateChart();
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────

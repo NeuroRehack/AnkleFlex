@@ -116,7 +116,9 @@ main {
 /* ── Controls ─────────────────────────────────────────────────────────────── */
 #controls {
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 20px;
   flex-shrink: 0;
 }
 
@@ -135,6 +137,24 @@ main {
 
 #tare-btn:hover  { background: var(--accent); }
 #tare-btn:active { background: #14253d; }
+
+#flip-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+#flip-axis {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
 
 /* ── Emulation panel ──────────────────────────────────────────────────────── */
 #emulation-panel {
