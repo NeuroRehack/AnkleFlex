@@ -3,21 +3,21 @@
 #
 # Run this immediately after first SSH login:
 #
-#   curl -fsSL https://raw.githubusercontent.com/NeuroRehack/AnkleFlex/develop/bootstrap.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/SamiKaab/AnkleFlex/develop/bootstrap.sh | bash
 #
 # What it does:
-#   1. Installs git
+#   1. Installs git and curl
 #   2. Clones the repository into ~/AnkleFlex
-#   3. Delegates to setup.sh (uv, Python deps, hotspot, autostart)
-#   4. Reboots — on next boot the app starts automatically
+#   3. Delegates to setup.sh (system deps, uv, Python deps, hotspot, autostart)
+#   4. Reboots — on next boot the hotspot and app start automatically
 #
 # After reboot:
 #   • Join the Wi-Fi hotspot  SSID: AnkleFlex  password: starseng
-#   • Open http://ankleflex.local:8000/   (fallback: http://10.42.0.1:8000/)
+#   • Open http://10.42.0.1:8000/   (or http://ankleflex.local:8000/)
 
 set -e
 
-REPO_URL="https://github.com/NeuroRehack/AnkleFlex.git"
+REPO_URL="https://github.com/SamiKaab/AnkleFlex.git"
 BRANCH="develop"
 INSTALL_DIR="$HOME/AnkleFlex"
 
