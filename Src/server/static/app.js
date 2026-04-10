@@ -81,7 +81,7 @@ function initChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 180 },
+      animation: { duration: 0 },
       plugins: {
         legend: { display: false },
         tooltip: { enabled: false },

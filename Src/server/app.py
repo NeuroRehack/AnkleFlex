@@ -3,7 +3,7 @@ FastAPI application for AnkleFlex.
 
 Serves the web UI and provides:
   GET  /          → index.html
-  GET  /stream    → Server-Sent Events (state at 2 Hz)
+  GET  /stream    → Server-Sent Events (state at 20 Hz)
   POST /tare      → Reset session min/max; recalibrate offset on hardware
   GET  /status    → One-shot JSON state snapshot
   POST /emulation/weight → Set simulated weight (emulation mode only)
@@ -54,8 +54,11 @@ def do_tare() -> None:
 
 # ── Background sensor reader ──────────────────────────────────────────────────
 
+_SENSOR_HZ = 20          # target sensor poll rate
+_SENSOR_INTERVAL = 1 / _SENSOR_HZ
+
 async def _sensor_loop() -> None:
-    """Reads the load cell at 2 Hz and updates shared state."""
+    """Reads the load cell at 20 Hz and updates shared state."""
     loop = asyncio.get_running_loop()
     while True:
         try:
@@ -70,7 +73,7 @@ async def _sensor_loop() -> None:
         except Exception as exc:
             # Log but never crash — sensor errors are recoverable
             print(f"[sensor] read error: {exc}")
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(_SENSOR_INTERVAL)
 
 
 @asynccontextmanager
@@ -95,7 +98,7 @@ async def index():
     return FileResponse(_STATIC / "index.html")
 
 
-@app.get("/stream", summary="Server-Sent Events — pushes state at 2 Hz")
+@app.get("/stream", summary="Server-Sent Events — pushes state at 20 Hz")
 async def stream(request: Request):
     async def generator():
         try:
@@ -103,7 +106,7 @@ async def stream(request: Request):
                 if await request.is_disconnected():
                     break
                 yield {"data": json.dumps(_state)}
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(_SENSOR_INTERVAL)
         finally:
             pass  # cleanup on disconnect
 
