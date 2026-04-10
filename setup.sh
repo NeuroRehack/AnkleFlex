@@ -62,14 +62,19 @@ sudo nmcli connection add \
     ifname wlan0 \
     con-name AnkleFlexHotspot \
     autoconnect yes \
+    autoconnect-priority 10 \
     ssid AnkleFlex \
     802-11-wireless.mode ap \
     802-11-wireless-security.key-mgmt wpa-psk \
     802-11-wireless-security.psk starseng \
     ipv4.method shared \
+    ipv4.addresses 10.42.0.1/24 \
     ipv4.route-metric 200 \
     ipv6.method disabled
-echo "    Hotspot profile created — will activate automatically on reboot"
+
+# Activate the hotspot immediately (safe: wlan0 only, won't affect eth0/SSH)
+sudo nmcli connection up AnkleFlexHotspot 2>/dev/null || true
+echo "    Hotspot profile created and activated"
 
 # ── 4. Auto-start on boot (systemd service) ─────────────────────────────────
 echo "[4/4] Installing systemd service..."
@@ -77,10 +82,28 @@ PYTHON="$REPO_DIR/.venv/bin/python"
 LOG="$HOME/ankleflex.log"
 SERVICE_FILE="/etc/systemd/system/ankleflex.service"
 
+# Hotspot service: ensures wlan0 hotspot is up before the app starts
+sudo tee /etc/systemd/system/ankleflex-hotspot.service > /dev/null <<'EOF'
+[Unit]
+Description=AnkleFlex WiFi hotspot
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/nmcli connection up AnkleFlexHotspot
+ExecStop=/usr/bin/nmcli connection down AnkleFlexHotspot
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
 Description=AnkleFlex force feedback app
-After=network.target
+After=network.target ankleflex-hotspot.service
+Wants=ankleflex-hotspot.service
 
 [Service]
 Type=simple
@@ -97,18 +120,24 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
+sudo systemctl enable ankleflex-hotspot.service
 sudo systemctl enable ankleflex.service
-echo "    systemd service enabled: ankleflex.service"
+echo "    systemd services enabled: ankleflex-hotspot + ankleflex"
 
 # ── Done ─────────────────────────────────────────────────────────────────────
 echo ""
-echo "✓ Setup complete. Now reboot:"
-echo "    sudo reboot"
+echo "✓ Setup complete."
 echo ""
-echo "After reboot:"
+echo "  Hotspot is already active — you can join now:"
 echo "  • Join Wi-Fi:   SSID=AnkleFlex  password=starseng"
 echo "  • Open browser: http://10.42.0.1:8000/"
 echo "  • mDNS URL:     http://ankleflex.local:8000/"
 echo "  • View logs:    tail -f $LOG"
 echo "  • App status:   sudo systemctl status ankleflex"
+echo ""
+echo "  To start the app now (without rebooting):"
+echo "    sudo systemctl start ankleflex"
+echo ""
+echo "  Or reboot for a full clean start:"
+echo "    sudo reboot"
 
