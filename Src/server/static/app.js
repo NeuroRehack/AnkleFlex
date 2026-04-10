@@ -8,10 +8,11 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let appState = { weight: 0, min_weight: 0, max_weight: 0, emulation: false };
 let axisFlipped = false;
+let scale = 1.0;
 let chart = null;
 
-// Returns the value with axis direction applied.
-function displayValue(v) { return axisFlipped ? -v : v; }
+// Returns the value with axis direction and scale applied.
+function displayValue(v) { return (axisFlipped ? -v : v) * scale; }
 
 // ── Custom Chart.js plugin: horizontal reference lines ────────────────────────
 const refLinesPlugin = {
@@ -191,6 +192,24 @@ function toggleAxisFlip(checked) {
   axisFlipped = checked;
   updateWeightDisplay();
   updateChart();
+}
+
+// ── Scale ──────────────────────────────────────────────────────────────────────
+function setScale(value) {
+  const v = Math.max(0.1, Math.min(20, parseFloat(value) || 1));
+  scale = v;
+  syncScaleControls();
+  updateWeightDisplay();
+  updateChart();
+}
+
+function syncScaleControls() {
+  document.getElementById("scale-slider").value = scale;
+  document.getElementById("scale-slider-value").textContent = scale.toFixed(1) + "×";
+}
+
+function stepScale(delta) {
+  setScale(Math.round((scale + delta) * 10) / 10);
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
