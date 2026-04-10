@@ -13,6 +13,7 @@ This project interfaces a Raspberry Pi with a HX711 load cell amplifier and a 5k
     - [Hardware Setup](#hardware-setup)
     - [Raspberry Pi set up](#raspberry-pi-set-up)
   - [Usage](#usage)
+  - [Emulation Mode (No Hardware Required)](#emulation-mode-no-hardware-required)
 
 
 ## Components Required
@@ -109,3 +110,72 @@ Connect to the hotspot using the password and open a browser and navigate to `ht
 
 To Tare the device, press the button <strong style="color:red">once</strong>. 
 If the program becomes unresponsive, press the button <strong style="color:red">twice</strong> within a second to restart device.
+
+## Emulation Mode (No Hardware Required)
+
+## Python/uv Setup (Recommended)
+
+For portable, reproducible Python dependency management, we recommend using [uv](https://github.com/astral-sh/uv) which is much faster than pip and builds a local virtual environment:
+
+1. **Install uv (if not already installed)**
+    ```sh
+    pip install uv
+    ```
+
+2. **Create a local virtual environment and install dependencies:**
+    ```sh
+    uv venv
+    uv pip install -e .                      # Editable install using pyproject.toml
+    ```
+    - This sets up a `.venv` folder and installs all your listed dependencies.
+    - On a Raspberry Pi (real hardware), add `[hardware]` deps:
+        ```sh
+        uv pip install -e .[hardware]
+        ```
+
+3. **Activating the venv:**
+    - On Linux/macOS:
+      ```sh
+      source .venv/bin/activate
+      ```
+    - On Windows (cmd):
+      ```cmd
+      .venv\Scripts\activate
+      ```
+    - On PowerShell:
+      ```powershell
+      .venv\Scripts\Activate.ps1
+      ```
+
+4. **Run the emulator in emulation mode:**
+    ```sh
+    uv pip install -e .      # If new code or dependencies added
+    set ANKLEFLEX_EMULATE_LOADCELL=1  # (use 'export' on Unix/Mac)
+    python Src/main.py
+    ```
+
+All code, dependencies, and emulation logic are managed using pyproject.toml and uv for reproducibility and speed. No Raspberry Pi required for development/testing in emulation mode!
+
+
+You can run and test AnkleFlex on any computer without a load cell or Raspberry Pi hardware by enabling emulation mode. This uses a software emulation layer for the load cell.
+
+**To enable emulation mode:**
+
+1. Set the environment variable before running the app:
+   - On Linux/macOS:
+     ```sh
+     export ANKLEFLEX_EMULATE_LOADCELL=1
+     python Src/main.py
+     ```
+   - On Windows (cmd):
+     ```cmd
+     set ANKLEFLEX_EMULATE_LOADCELL=1
+     python Src/main.py
+     ```
+
+2. In emulation mode, the app will use a software load cell. You can extend this to provide a UI slider or scripted values for testing.
+
+**Note:**
+- No changes to hardware code are required.
+- All emulation code is fully separated in `Src/emulation/`.
+- To use real hardware, unset the environment variable or set it to 0.

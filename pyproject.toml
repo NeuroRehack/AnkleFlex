@@ -1,0 +1,28 @@
+[project]
+name = "ankleflex"
+description = "AnkleFlex — ankle rehabilitation biofeedback device"
+version = "0.2.0"
+authors = [
+  { name = "AnkleFlex Contributors" },
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "sse-starlette>=1.6.0",
+]
+
+[project.optional-dependencies]
+hardware = [
+    "hx711==1.1.2.3",
+    "rpi-lgpio==0.6",
+]
+
+[project.scripts]
+ankleflex = "main:main"
+
+[tool.setuptools.packages.find]
+where = ["Src"]
+
+[tool.uv]
+package = true

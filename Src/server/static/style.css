@@ -1,0 +1,160 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --blue:   #1d3557;
+  --accent: #457b9d;
+  --bar:    #4361ee;
+  --red:    #e63946;
+  --orange: #f4a261;
+  --warn-bg: #fff3cd;
+  --warn-border: #ffc107;
+  --warn-text: #856404;
+  --bg: #f1f3f5;
+  --surface: #ffffff;
+  --text: #212529;
+  --muted: #6c757d;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+header {
+  background: var(--blue);
+  color: white;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+header h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.dot.connected    { background: #2dc653; }
+.dot.disconnected { background: var(--red); }
+
+/* ── Main layout ──────────────────────────────────────────────────────────── */
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px 12px;
+  gap: 12px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Weight number ────────────────────────────────────────────────────────── */
+#weight-display {
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+#weight-value {
+  font-size: clamp(3rem, 10vw, 5.5rem);
+  font-weight: 800;
+  color: var(--blue);
+  letter-spacing: -0.02em;
+}
+
+#weight-unit {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  color: var(--muted);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* ── Chart ────────────────────────────────────────────────────────────────── */
+#chart-container {
+  flex: 1;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  padding: 12px;
+  position: relative;
+  min-height: 0;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+#controls {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+#tare-btn {
+  background: var(--blue);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 40px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#tare-btn:hover  { background: var(--accent); }
+#tare-btn:active { background: #14253d; }
+
+/* ── Emulation panel ──────────────────────────────────────────────────────── */
+#emulation-panel {
+  display: none;           /* shown via JS when state.emulation === true */
+  flex-direction: column;
+  gap: 8px;
+  background: var(--warn-bg);
+  border: 2px solid var(--warn-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+
+#emulation-label {
+  color: var(--warn-text);
+  font-size: 0.9rem;
+}
+
+#emulation-slider {
+  width: 100%;
+  accent-color: var(--warn-border);
+  cursor: pointer;
+}

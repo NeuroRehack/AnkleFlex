@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnkleFlex</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>AnkleFlex</h1>
+    <div id="status-indicator">
+      <span id="status-dot" class="dot disconnected"></span>
+      <span id="status-label">Connecting…</span>
+    </div>
+  </header>
+
+  <main>
+    <div id="weight-display">
+      <span id="weight-value">—</span>
+      <span id="weight-unit">kg</span>
+    </div>
+
+    <div id="chart-container">
+      <canvas id="weightChart"></canvas>
+    </div>
+
+    <div id="controls">
+      <button id="tare-btn" onclick="tare()">Tare / Reset</button>
+    </div>
+
+    <!-- Shown only in emulation mode (controlled by SSE state.emulation) -->
+    <div id="emulation-panel">
+      <div id="emulation-label">
+        ⚠ Emulation mode &mdash; simulated weight:
+        <strong id="slider-value">0.0</strong> kg
+      </div>
+      <input
+        type="range"
+        id="emulation-slider"
+        min="-100" max="100" step="0.1" value="0"
+        oninput="setEmulatedWeight(this.value)"
+      >
+    </div>
+  </main>
+
+  <script src="/static/vendor/chart.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
