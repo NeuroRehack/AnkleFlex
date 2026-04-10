@@ -82,23 +82,17 @@ main {
 }
 
 /* ── Weight number ────────────────────────────────────────────────────────── */
-#weight-display {
-  text-align: center;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
 #weight-value {
-  font-size: clamp(3rem, 10vw, 5.5rem);
+  font-size: clamp(2rem, 7vw, 3.5rem);
   font-weight: 800;
   color: var(--blue);
   letter-spacing: -0.02em;
 }
 
 #weight-unit {
-  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-size: clamp(1rem, 3vw, 1.4rem);
   color: var(--muted);
-  margin-left: 6px;
+  margin-left: 4px;
   vertical-align: middle;
 }
 
@@ -112,14 +106,27 @@ main {
   position: relative;
   min-height: 0;
 }
-
+/* ── Weight overlay (inside chart) ────────────────────────────────────── */
+#weight-display {
+  position: absolute;
+  top: 50%;                   /* fallback before JS positions it */
+  left: 50%;
+  transform: translateX(-50%);
+  line-height: 1;
+  z-index: 10;
+  pointer-events: none;
+  background: rgba(255,255,255,0.75);
+  padding: 2px 12px 4px;
+  border-radius: 8px;
+}
 /* ── Controls ─────────────────────────────────────────────────────────────── */
 #controls {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 16px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 #tare-btn {
@@ -160,7 +167,7 @@ main {
 #scale-control {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 

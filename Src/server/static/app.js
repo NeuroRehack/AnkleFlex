@@ -95,16 +95,8 @@ function initChart() {
         y: {
           min: -1,
           max: 10,
-          title: {
-            display: true,
-            text: "Force (kg)",
-            font: { size: 14, weight: "600" },
-            color: "#6c757d",
-          },
-          ticks: {
-            font: { size: 13 },
-            color: "#495057",
-          },
+          title: { display: false },
+          ticks: { display: false },
           grid: { color: "rgba(0,0,0,0.06)" },
         },
       },
@@ -127,9 +119,25 @@ function updateChart() {
   chart.options.scales.y.max = yMax;
   chart.options.scales.y.min = yMin;
   chart.update("none");  // skip transition for live data
+  repositionWeightDisplay();
 }
 
 // ── DOM updates ───────────────────────────────────────────────────────────────
+function repositionWeightDisplay() {
+  if (!chart) return;
+  const el = document.getElementById("weight-display");
+  const yScale = chart.scales.y;
+  const zeroPx = yScale.getPixelForValue(0);
+  const container = document.getElementById("chart-container");
+  // Offset from the top of #chart-container (which has 12px padding)
+  const containerTop = container.getBoundingClientRect().top;
+  const chartTop = chart.chartArea.top;
+  // zeroPx is relative to canvas; canvas starts at chartTop inside container
+  const offsetFromContainerTop = zeroPx + chartTop - chart.chartArea.top + 12;
+  const elHeight = el.offsetHeight || 36;
+  el.style.top = (zeroPx - elHeight / 2) + "px";
+}
+
 function updateWeightDisplay() {
   document.getElementById("weight-value").textContent =
     displayValue(appState.weight).toFixed(1);
