@@ -3,7 +3,7 @@
 import sys
 import dash
 from dash import html, dcc
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.express as px
 import time
 import threading
@@ -199,7 +199,38 @@ class Button():
 
 app = dash.Dash(__name__)
 
-_emulator_controls = [] if IS_PI else [
+_emulator_visible = not IS_PI
+
+app.layout = html.Div([
+    dcc.Interval(id='interval', interval=500, n_intervals=0),
+    # ── Controls row ────────────────────────────────────────────────────────
+    html.Div([
+        dcc.Checklist(
+            id='invert-y',
+            options=[{'label': ' Flip Y Axis', 'value': 'flip'}],
+            value=[],
+            style={'fontSize': '14px', 'cursor': 'pointer', 'whiteSpace': 'nowrap'}
+        ),
+        html.Span('Scale:', style={'fontSize': '13px', 'whiteSpace': 'nowrap'}),
+        html.Div([
+            dcc.Slider(
+                id='scale-slider',
+                min=0.1, max=10, step=0.1, value=1.0,
+                marks={1: '1×', 2: '2×', 5: '5×', 10: '10×'},
+                tooltip={'placement': 'top', 'always_visible': True},
+            ),
+        ], style={'width': '300px', 'paddingTop': '4px'}),
+    ], style={
+        'position': 'absolute', 'bottom': '90px', 'left': '50%',
+        'transform': 'translateX(-50%)',
+        'zIndex': 1000,
+        'display': 'flex', 'alignItems': 'center', 'gap': '16px',
+        'background': 'rgba(255,255,255,0.9)', 'padding': '8px 16px',
+        'borderRadius': '8px', 'fontSize': '14px',
+        'boxShadow': '0 1px 4px rgba(0,0,0,0.15)',
+    }),
+    dcc.Graph(id='graph', style={'height': '90vh', 'width': '98vw'}),
+    # Emulator slider — always in DOM, hidden on Pi
     html.Div([
         html.Label('Simulated load (kg)', style={'fontSize': '13px', 'marginBottom': '4px'}),
         dcc.Slider(
@@ -209,88 +240,56 @@ _emulator_controls = [] if IS_PI else [
             tooltip={'placement': 'bottom', 'always_visible': True},
         )
     ], style={
-        'position': 'absolute', 'bottom': '10px', 'left': '5%', 'width': '90%',
+        'position': 'absolute', 'bottom': '8px', 'left': '5%', 'width': '90%',
         'background': 'rgba(255,255,0,0.15)', 'border': '1px dashed #aaa',
-        'padding': '8px 12px', 'borderRadius': '6px', 'zIndex': 1000
-    })
-]
-
-app.layout = html.Div([
-    dcc.Interval(id='interval', interval=500, n_intervals=0),
-    dcc.Checklist(
-        id='invert-y',
-        options=[{'label': ' Flip Y Axis', 'value': 'flip'}],
-        value=[],
-        style={
-            'position': 'absolute', 'top': '10px', 'left': '10px', 'zIndex': 1000,
-            'background': 'rgba(255,255,255,0.8)', 'padding': '6px 10px', 'borderRadius': '4px',
-            'fontSize': '14px', 'cursor': 'pointer'
-        }
-    ),
-    dcc.Graph(id='graph', style={'height': '90vh', 'width': '98vw'}),
-    *_emulator_controls,
+        'padding': '8px 12px', 'borderRadius': '6px', 'zIndex': 1000,
+        'display': 'block' if _emulator_visible else 'none',
+    }),
 ], style={'height': '100vh', 'width': '100vw', 'display': 'flex', 'justify-content': 'center',
           'align-items': 'center', 'position': 'relative'})
-
-if not IS_PI:
-    @app.callback(
-        Output('emulator-slider', 'value'),
-        Input('emulator-slider', 'value')
-    )
-    def sync_emulator(value):
-        if value is not None:
-            emulated_hx711.set_weight(value)
-        return value
-
 
 @app.callback(
     Output('graph', 'figure'),
     Input('interval', 'n_intervals'),
-    Input('invert-y', 'value')
+    Input('invert-y', 'value'),
+    Input('scale-slider', 'value'),
+    Input('emulator-slider', 'value'),
 )
-def update_graph(n, invert_y):
+def update_graph(n, invert_y, scale, emulator_val):
     global loadcell, maxWeight, minWeight
+    scale = scale or 1.0
+    if not IS_PI:
+        emulated_hx711.set_weight(emulator_val or 0.0)
     data = loadcell.get_weight()
-    weight = data if data not in (False, -1) else 0.0
+    raw = data if data not in (False, -1) else 0.0
+
+    # Apply scale and track running min/max on the scaled value
+    weight = raw * scale
     minWeight = min(minWeight, weight)
     maxWeight = max(maxWeight, weight)
 
     # Build the figure; range_y will be overridden below based on the flip state
     fig = px.bar(x=['Weight'], y=[weight], title='Weight (kg)', range_y=[minWeight*1.1, maxWeight*1.1])
-    
+
     # add horizontal line  max weight
     fig.add_shape(
         type="line",
-        x0=-0.5,
-        y0=maxWeight,
-        x1=0.5,
-        y1=maxWeight,
-        line=dict(
-            color="Red",
-            width=3
-        )
+        x0=-0.5, y0=maxWeight, x1=0.5, y1=maxWeight,
+        line=dict(color="Red", width=3)
     )
     # add horizontal line  min weight
     fig.add_shape(
         type="line",
-        x0=-0.5,
-        y0=minWeight,
-        x1=0.5,
-        y1=minWeight,
-        line=dict(
-            color="red",
-            width=3
-        )
+        x0=-0.5, y0=minWeight, x1=0.5, y1=minWeight,
+        line=dict(color="red", width=3)
     )
     # Apply Y axis range; invert when the checkbox is checked.
-    # range_y on px.bar sets an initial range, but update_yaxes(range=...) always wins,
-    # so we use it unconditionally to keep a single, explicit source of truth.
     if 'flip' in invert_y:
         fig.update_yaxes(range=[maxWeight * 1.1, minWeight * 1.1])
     else:
         fig.update_yaxes(range=[minWeight * 1.1, maxWeight * 1.1])
 
-    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))  # Remove margins to fill the graph area
+    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
     return fig
 
 ############################################################################################################
