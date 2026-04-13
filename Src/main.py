@@ -283,6 +283,12 @@ def update_graph(n, invert_y, scale, emulator_val):
         x0=-0.5, y0=minWeight, x1=0.5, y1=minWeight,
         line=dict(color="red", width=3)
     )
+    # zero baseline
+    fig.add_shape(
+        type="line",
+        x0=-0.5, y0=0, x1=0.5, y1=0,
+        line=dict(color="black", width=3)
+    )
     # Apply Y axis range; invert when the checkbox is checked.
     if 'flip' in invert_y:
         fig.update_yaxes(range=[maxWeight * 1.1, minWeight * 1.1])

@@ -13,6 +13,7 @@ This project interfaces a Raspberry Pi with a HX711 load cell amplifier and a 5k
     - [Hardware Setup](#hardware-setup)
     - [Raspberry Pi set up](#raspberry-pi-set-up)
   - [Usage](#usage)
+  - [Development / Running Without Hardware](#development--running-without-hardware)
 
 
 ## Components Required
@@ -109,3 +110,22 @@ Connect to the hotspot using the password and open a browser and navigate to `ht
 
 To Tare the device, press the button <strong style="color:red">once</strong>. 
 If the program becomes unresponsive, press the button <strong style="color:red">twice</strong> within a second to restart device.
+
+## Development / Running Without Hardware
+
+To run and test the UI on a Windows machine without a Raspberry Pi:
+
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
+2. Clone the repo and install base dependencies:
+```shell
+git clone https://github.com/NeuroRehack/AnkleFlex.git
+cd AnkleFlex
+uv sync
+```
+3. Run the app:
+```shell
+uv run python Src/main.py
+```
+4. Open `http://localhost:8050/` in your browser.
+
+In emulation mode a **Simulated load (kg)** slider appears at the bottom of the UI — drag it to simulate force input. The **Scale** slider and **Flip Y Axis** checkbox are available in all modes.
