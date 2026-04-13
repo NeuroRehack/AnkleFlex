@@ -229,7 +229,7 @@ def update_graph(n, invert_y):
     # Apply Y axis range; invert when the checkbox is checked.
     # range_y on px.bar sets an initial range, but update_yaxes(range=...) always wins,
     # so we use it unconditionally to keep a single, explicit source of truth.
-    if invert_y:
+    if 'flip' in invert_y:
         fig.update_yaxes(range=[maxWeight * 1.1, minWeight * 1.1])
     else:
         fig.update_yaxes(range=[minWeight * 1.1, maxWeight * 1.1])
