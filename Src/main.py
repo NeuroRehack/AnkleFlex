@@ -172,14 +172,26 @@ app = dash.Dash(__name__)
 
 app.layout = html.Div([
     dcc.Interval(id='interval', interval=500, n_intervals=0),
+    dcc.Checklist(
+        id='invert-y',
+        options=[{'label': ' Flip Y Axis', 'value': 'flip'}],
+        value=[],
+        style={
+            'position': 'absolute', 'top': '10px', 'left': '10px', 'zIndex': 1000,
+            'background': 'rgba(255,255,255,0.8)', 'padding': '6px 10px', 'borderRadius': '4px',
+            'fontSize': '14px', 'cursor': 'pointer'
+        }
+    ),
     dcc.Graph(id='graph', style={'height': '90vh', 'width': '98vw'})  # Adjust the graph size here
-], style={'height': '100vh', 'width': '100vw', 'display': 'flex', 'justify-content': 'center', 'align-items': 'center'})  # This makes the div fill the window
+], style={'height': '100vh', 'width': '100vw', 'display': 'flex', 'justify-content': 'center',
+          'align-items': 'center', 'position': 'relative'})  # This makes the div fill the window
 
 @app.callback(
     Output('graph', 'figure'),
-    Input('interval', 'n_intervals')
+    Input('interval', 'n_intervals'),
+    Input('invert-y', 'value')
 )
-def update_graph(n):
+def update_graph(n, invert_y):
     global loadcell, maxWeight, minWeight
     data = loadcell.get_weight()
     if data not in [False, -1]:
@@ -187,6 +199,7 @@ def update_graph(n):
     minWeight = min(minWeight, weight)
     maxWeight = max(maxWeight, weight)
 
+    # Build the figure; range_y will be overridden below based on the flip state
     fig = px.bar(x=['Weight'], y=[weight], title='Weight (kg)', range_y=[minWeight*1.1, maxWeight*1.1])
     
     # add horizontal line  max weight
@@ -213,6 +226,14 @@ def update_graph(n):
             width=3
         )
     )
+    # Apply Y axis range; invert when the checkbox is checked.
+    # range_y on px.bar sets an initial range, but update_yaxes(range=...) always wins,
+    # so we use it unconditionally to keep a single, explicit source of truth.
+    if invert_y:
+        fig.update_yaxes(range=[maxWeight * 1.1, minWeight * 1.1])
+    else:
+        fig.update_yaxes(range=[minWeight * 1.1, maxWeight * 1.1])
+
     fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))  # Remove margins to fill the graph area
     return fig
 
