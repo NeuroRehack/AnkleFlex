@@ -1,19 +1,40 @@
-# create a dashplotly app to visualize the data as a bar chart
-# pip install dash pandas RPi.GPIO hx711 
-import dash 
+# AnkleFlex — Dash/Plotly force-feedback visualiser
+# Runs on Raspberry Pi (real hardware) or any desktop (emulation mode).
+import sys
+import dash
 from dash import html, dcc
 from dash.dependencies import Input, Output
 import plotly.express as px
 import time
-import RPi.GPIO as GPIO # Import Raspberry Pi GPIO library
-from hx711 import HX711 
 import threading
 import queue
 import os
 import logging
-from tqdm import tqdm
 from flask import request
-import led
+
+# Detect whether we are running on a Raspberry Pi.
+try:
+    import RPi.GPIO as GPIO
+    from hx711 import HX711
+    IS_PI = True
+except (ImportError, RuntimeError):
+    IS_PI = False
+
+from emulated_hx711 import EmulatedHX711
+
+# Conditionally import led — only available on Pi.
+if IS_PI:
+    import led
+else:
+    class led:  # noqa: N801 — stub so call-sites don't need guards
+        @staticmethod
+        def init_led(): pass
+        @staticmethod
+        def turn_on_led(): pass
+        @staticmethod
+        def turn_off_led(): pass
+        @staticmethod
+        def blink_led(): pass
 
 def shutdown_server():
     func = request.environ.get('werkzeug.server.shutdown')
@@ -62,33 +83,40 @@ log.setLevel(logging.ERROR)
 ############################################################################################################
 
 class LoadCell():
-    def __init__(self):
-        print('Initializing LoadCell...')
-        self.hx711 = HX711(
-            dout_pin=LOADCELL_DOUT_PIN,
-            pd_sck_pin=LOADCELL_SCK_PIN,
-            channel='A',
-            gain=64
-        )
+    def __init__(self, hx711=None):
+        if hx711 is not None:
+            # Emulation path: caller supplies a pre-built stub.
+            self.hx711 = hx711
+        else:
+            # Hardware path: only reached on a real Pi.
+            print('Initializing LoadCell...')
+            self.hx711 = HX711(
+                dout_pin=LOADCELL_DOUT_PIN,
+                pd_sck_pin=LOADCELL_SCK_PIN,
+                channel='A',
+                gain=64
+            )
         self.ready = False
         
     def initialize(self):
         print('Calibrating...')
-        state = run_with_timeout(self.hx711.reset,15)
+        state = run_with_timeout(self.hx711.reset, 15)
         if state == -1:
             print('Error initializing')
             led.turn_off_led()
             self.cleanup()
-            os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main.py')
+            if IS_PI:
+                os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main.py')
             exit()
             return
-        
+
         self.offset = run_with_timeout(self.get_offset, 15)
         if self.offset == -1:
             print('Error initializing')
             led.turn_off_led()
             self.cleanup()
-            os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main.py')
+            if IS_PI:
+                os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main.py')
             exit()
             return
         
@@ -97,7 +125,7 @@ class LoadCell():
         measures = []
         while len(measures) < times:
             data = self.hx711._read()
-            if data not in [False, -1]:
+            if data is not False and data != -1:
                 measures.append(data)
                 print('*'*len(measures))
         return sum(measures) / len(measures)
@@ -108,7 +136,8 @@ class LoadCell():
 
     def cleanup(self):
         self.hx711.power_down()
-        GPIO.cleanup()
+        if IS_PI:
+            GPIO.cleanup()
         
         
 ############################################################################################################
@@ -170,6 +199,22 @@ class Button():
 
 app = dash.Dash(__name__)
 
+_emulator_controls = [] if IS_PI else [
+    html.Div([
+        html.Label('Simulated load (kg)', style={'fontSize': '13px', 'marginBottom': '4px'}),
+        dcc.Slider(
+            id='emulator-slider',
+            min=-50, max=50, step=0.5, value=0,
+            marks={i: f'{i}' for i in range(-50, 51, 10)},
+            tooltip={'placement': 'bottom', 'always_visible': True},
+        )
+    ], style={
+        'position': 'absolute', 'bottom': '10px', 'left': '5%', 'width': '90%',
+        'background': 'rgba(255,255,0,0.15)', 'border': '1px dashed #aaa',
+        'padding': '8px 12px', 'borderRadius': '6px', 'zIndex': 1000
+    })
+]
+
 app.layout = html.Div([
     dcc.Interval(id='interval', interval=500, n_intervals=0),
     dcc.Checklist(
@@ -182,9 +227,21 @@ app.layout = html.Div([
             'fontSize': '14px', 'cursor': 'pointer'
         }
     ),
-    dcc.Graph(id='graph', style={'height': '90vh', 'width': '98vw'})  # Adjust the graph size here
+    dcc.Graph(id='graph', style={'height': '90vh', 'width': '98vw'}),
+    *_emulator_controls,
 ], style={'height': '100vh', 'width': '100vw', 'display': 'flex', 'justify-content': 'center',
-          'align-items': 'center', 'position': 'relative'})  # This makes the div fill the window
+          'align-items': 'center', 'position': 'relative'})
+
+if not IS_PI:
+    @app.callback(
+        Output('emulator-slider', 'value'),
+        Input('emulator-slider', 'value')
+    )
+    def sync_emulator(value):
+        if value is not None:
+            emulated_hx711.set_weight(value)
+        return value
+
 
 @app.callback(
     Output('graph', 'figure'),
@@ -194,8 +251,7 @@ app.layout = html.Div([
 def update_graph(n, invert_y):
     global loadcell, maxWeight, minWeight
     data = loadcell.get_weight()
-    if data not in [False, -1]:
-        weight = data
+    weight = data if data not in (False, -1) else 0.0
     minWeight = min(minWeight, weight)
     maxWeight = max(maxWeight, weight)
 
@@ -245,21 +301,18 @@ def update_graph(n, invert_y):
 if __name__ == '__main__':
     led.init_led()
     led.turn_on_led()
-    try:
-        print('Starting LoadCell...')
+
+    if IS_PI:
+        print('Running on Raspberry Pi — using real hardware')
         loadcell = LoadCell()
-        print('Starting Button...')
-        buttonThread = threading.Thread(target=Button, args=(loadcell,))
         loadcell.initialize()
-        buttonThread.daemon = True
+        buttonThread = threading.Thread(target=Button, args=(loadcell,), daemon=True)
         buttonThread.start()
-        
-        print('Starting app...')
-        app.run_server(debug=False, host='0.0.0.0', port=8050)
-    except :
-        buttonThread.join()
-        print('Exiting...')
-        loadcell.cleanup()
-        led.turn_off_led()
-        shutdown_server()
-        exit()
+    else:
+        print('Running in emulation mode — no hardware required')
+        emulated_hx711 = EmulatedHX711()
+        loadcell = LoadCell(hx711=emulated_hx711)
+        loadcell.initialize()
+
+    print('Starting app on http://0.0.0.0:8050 ...')
+    app.run_server(debug=False, host='0.0.0.0', port=8050)
