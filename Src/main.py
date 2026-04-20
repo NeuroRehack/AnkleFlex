@@ -247,6 +247,26 @@ app.layout = html.Div([
         dcc.Link('History', href='/history', style=LINK_STYLE),
     ], style=NAV_STYLE),
 
+    # ── Persistent controls bar (shared across all pages) ───────────────────
+    html.Div([
+        html.Button('Tare Load Cell', id='tare-button', n_clicks=0, style={
+            'padding': '8px 18px', 'fontSize': '14px',
+            'backgroundColor': '#007BFF', 'color': 'white',
+            'border': 'none', 'borderRadius': '5px', 'cursor': 'pointer',
+        }),
+        html.Div(id='tare-status', style={'fontSize': '14px', 'color': 'green', 'minWidth': '180px'}),
+        dcc.Checklist(
+            id='invert-y',
+            options=[{'label': ' Flip Y Axis', 'value': 'flip'}],
+            value=[],
+            style={'fontSize': '14px', 'cursor': 'pointer', 'whiteSpace': 'nowrap'},
+        ),
+    ], style={
+        'display': 'flex', 'alignItems': 'center', 'gap': '20px',
+        'padding': '6px 20px', 'background': '#e8e8e8',
+        'borderBottom': '1px solid #ccc',
+    }),
+
     # ── Page content (rendered dynamically by URL) ───────────────────────────
     html.Div(id='page-content', style={'flex': '1', 'position': 'relative', 'overflow': 'hidden'}),
 
@@ -272,48 +292,28 @@ app.layout = html.Div([
 # ── Live View page layout ─────────────────────────────────────────────────────
 def live_view_layout():
     return html.Div([
-        html.Div([
-            dcc.Checklist(
-                id='invert-y',
-                options=[{'label': ' Flip Y Axis', 'value': 'flip'}],
-                value=[],
-                style={'fontSize': '14px', 'cursor': 'pointer', 'whiteSpace': 'nowrap'},
-            ),
-            html.Span('Scale:', style={'fontSize': '13px', 'whiteSpace': 'nowrap'}),
-            html.Div([
-                dcc.Slider(
-                    id='scale-slider',
-                    min=0.1, max=10, step=0.1, value=1.0,
-                    marks={1: '1×', 2: '2×', 5: '5×', 10: '10×'},
-                    tooltip={'placement': 'top', 'always_visible': True},
-                ),
-            ], style={'width': '300px', 'paddingTop': '4px'}),
-        ], style={
-            'position': 'absolute', 'bottom': '90px', 'left': '50%',
-            'transform': 'translateX(-50%)', 'zIndex': 1000,
-            'display': 'flex', 'alignItems': 'center', 'gap': '16px',
-            'background': 'rgba(255,255,255,0.9)', 'padding': '8px 16px',
-            'borderRadius': '8px', 'fontSize': '14px',
-            'boxShadow': '0 1px 4px rgba(0,0,0,0.15)',
-        }),
-        dcc.Graph(id='bar-graph', style={'height': '90vh', 'width': '98vw'}),
-    ], style={'position': 'relative', 'height': '100%'})
+        dcc.Graph(id='bar-graph', style={'height': '100%', 'width': '98vw'}),
+    ], style={'position': 'relative', 'height': '100%', 'display': 'flex', 'justifyContent': 'center'})
 
 
 # ── History page layout ───────────────────────────────────────────────────────
 def history_layout():
     return html.Div([
         html.Div([
-            html.Button('Tare Load Cell', id='tare-button', n_clicks=0, style={
-                'padding': '10px 20px', 'fontSize': '16px', 'margin': '10px',
-                'backgroundColor': '#007BFF', 'color': 'white',
-                'border': 'none', 'borderRadius': '5px', 'cursor': 'pointer',
-            }),
-            html.Div(id='tare-status', style={'fontSize': '16px', 'margin': '10px', 'color': 'green'}),
-            html.Div(id='above-count', style={'fontSize': '20px', 'margin': '10px'}),
-            html.Div(id='below-count', style={'fontSize': '20px', 'margin': '10px'}),
-        ], style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'flexWrap': 'wrap'}),
-        dcc.Graph(id='line-graph', style={'height': '80vh', 'width': '98vw'}),
+            html.Div(id='above-count', style={'fontSize': '18px', 'margin': '6px 14px'}),
+            html.Div(id='below-count', style={'fontSize': '18px', 'margin': '6px 14px'}),
+            html.Span('Y Range ±:', style={'fontSize': '13px', 'whiteSpace': 'nowrap', 'marginLeft': '20px'}),
+            html.Div([
+                dcc.Slider(
+                    id='scale-slider',
+                    min=100, max=3000, step=100, value=1000,
+                    marks={100: '100', 500: '500', 1000: '1k', 2000: '2k', 3000: '3k'},
+                    tooltip={'placement': 'top', 'always_visible': True},
+                ),
+            ], style={'width': '280px', 'paddingTop': '4px'}),
+        ], style={'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap',
+                  'padding': '6px 16px', 'gap': '4px'}),
+        dcc.Graph(id='line-graph', style={'height': '82vh', 'width': '98vw'}),
     ], style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center'})
 
 
@@ -345,25 +345,22 @@ def render_page(pathname):
 @app.callback(
     Output('bar-graph', 'figure'),
     Input('interval', 'n_intervals'),
-    Input('invert-y', 'value'),
-    Input('scale-slider', 'value'),
     Input('emulator-slider', 'value'),
+    State('invert-y', 'value'),
     State('url', 'pathname'),
 )
-def update_bar(n, invert_y, scale, emulator_val, pathname):
+def update_bar(n, emulator_val, invert_y, pathname):
     if pathname != '/' and pathname is not None:
         raise PreventUpdate
     global loadcell, maxWeight, minWeight
-    scale = scale or 1.0
     if not IS_PI:
         emulated_hx711.set_weight(emulator_val or 0.0)
     raw = loadcell.get_weight()
     _record_history(raw)
-    weight = raw * scale
-    minWeight = min(minWeight, weight)
-    maxWeight = max(maxWeight, weight)
+    minWeight = min(minWeight, raw)
+    maxWeight = max(maxWeight, raw)
 
-    fig = px.bar(x=['Weight'], y=[weight], title='Weight (kg)')
+    fig = px.bar(x=['Weight'], y=[raw], title='Weight (kg)')
     fig.add_shape(type='line', x0=-0.5, y0=maxWeight, x1=0.5, y1=maxWeight, line=dict(color='Red', width=3))
     fig.add_shape(type='line', x0=-0.5, y0=minWeight, x1=0.5, y1=minWeight, line=dict(color='red', width=3))
     fig.add_shape(type='line', x0=-0.5, y0=0, x1=0.5, y1=0, line=dict(color='black', width=3))
@@ -381,9 +378,11 @@ def update_bar(n, invert_y, scale, emulator_val, pathname):
      Output('below-count', 'children')],
     Input('interval', 'n_intervals'),
     Input('emulator-slider', 'value'),
+    State('scale-slider', 'value'),
+    State('invert-y', 'value'),
     State('url', 'pathname'),
 )
-def update_history(n, emulator_val, pathname):
+def update_history(n, emulator_val, y_range, invert_y, pathname):
     if pathname != '/history':
         raise PreventUpdate
     global loadcell, above_threshold_count, below_threshold_count
@@ -391,6 +390,12 @@ def update_history(n, emulator_val, pathname):
         emulated_hx711.set_weight(emulator_val or 0.0)
     weight = loadcell.get_weight()
     _record_history(weight)
+
+    y_range = y_range or 1000
+    y_max = y_range
+    y_min = -y_range
+    if 'flip' in (invert_y or []):
+        y_min, y_max = y_max, y_min
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -403,12 +408,9 @@ def update_history(n, emulator_val, pathname):
     fig.add_hline(y=THRESHOLD_DOWN, line_dash='dot', line_color='blue',
                   annotation_text='-500 Threshold', annotation_position='bottom left')
     fig.add_shape(type='rect', xref='paper', yref='y',
-                  x0=0, x1=1, y0=THRESHOLD_UP, y1=5000, fillcolor='green', opacity=0.1, line_width=0)
+                  x0=0, x1=1, y0=THRESHOLD_UP, y1=abs(y_range), fillcolor='green', opacity=0.1, line_width=0)
     fig.add_shape(type='rect', xref='paper', yref='y',
-                  x0=0, x1=1, y0=-5000, y1=THRESHOLD_DOWN, fillcolor='blue', opacity=0.1, line_width=0)
-    all_vals = data_points + [0]
-    y_min = min(min(all_vals) * 1.1, THRESHOLD_DOWN * 1.5)
-    y_max = max(max(all_vals) * 1.1, THRESHOLD_UP * 1.5)
+                  x0=0, x1=1, y0=-abs(y_range), y1=THRESHOLD_DOWN, fillcolor='blue', opacity=0.1, line_width=0)
     fig.update_layout(
         title='Weight with Threshold Zones',
         yaxis_title='Weight',
