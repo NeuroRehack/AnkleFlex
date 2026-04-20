@@ -240,6 +240,19 @@ below_threshold_count = 0
 app.layout = html.Div([
     dcc.Interval(id='interval', interval=1000, n_intervals=0),
     html.Div([
+        html.Button('Tare Load Cell', id='tare-button', n_clicks=0, style={
+            'padding': '10px 20px',
+            'font-size': '16px',
+            'margin': '10px',
+            'background-color': '#007BFF',
+            'color': 'white',
+            'border': 'none',
+            'border-radius': '5px',
+            'cursor': 'pointer'
+        }),
+        html.Div(id='tare-status', style={'font-size': '16px', 'margin': '10px', 'color': 'green'})
+    ], style={'display': 'flex', 'justify-content': 'center'}),
+    html.Div([
         html.Div(id='above-count', style={'font-size': '20px', 'margin': '10px'}),
         html.Div(id='below-count', style={'font-size': '20px', 'margin': '10px'})
     ], style={'display': 'flex', 'justify-content': 'center'}),
@@ -249,8 +262,8 @@ app.layout = html.Div([
         html.Label('Simulated load (kg)', style={'fontSize': '13px', 'marginBottom': '4px'}),
         dcc.Slider(
             id='emulator-slider',
-            min=-50, max=50, step=0.5, value=0,
-            marks={i: f'{i}' for i in range(-50, 51, 10)},
+            min=-1000, max=1000, step=10, value=0,
+            marks={i: f'{i}' for i in range(-1000, 1001, 100)},
             tooltip={'placement': 'bottom', 'always_visible': True},
         )
     ], style={
@@ -353,6 +366,19 @@ def update_graph(n, emulator_val):
         f"Above +500 count: {above_threshold_count}",
         f"Below -500 count: {below_threshold_count}"
     )
+
+@app.callback(
+    Output('tare-status', 'children'),
+    Input('tare-button', 'n_clicks')
+)
+def tare_load_cell(n_clicks):
+    if n_clicks > 0:
+        try:
+            loadcell.tare()
+            return f"Tare complete at {time.strftime('%H:%M:%S')}"
+        except Exception as e:
+            return f"Tare failed: {e}"
+    return ""
 
 ############################################################################################################
 # end of dash app   
