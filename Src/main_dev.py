@@ -1,20 +1,44 @@
 
-import dash 
+
+import sys
+import dash
 from dash import html, dcc
 from dash.dependencies import Input, Output
 import plotly.express as px
 import time
-import RPi.GPIO as GPIO # Import Raspberry Pi GPIO library
-from hx711v0_5_1 import HX711 
 import threading
 import queue
 import os
 import logging
 from tqdm import tqdm
 from flask import request
-import led
+import plotly.graph_objects as go
 
-import plotly.graph_objects as go 
+# --- Emulation/Hardware detection ---
+try:
+    import RPi.GPIO as GPIO
+    from hx711v0_5_1 import HX711
+    IS_PI = True
+except (ImportError, RuntimeError):
+    IS_PI = False
+
+# Emulated HX711 for non-Pi systems
+if not IS_PI:
+    from emulated_hx711 import EmulatedHX711
+
+# Conditionally import led or stub
+if IS_PI:
+    import led
+else:
+    class led:
+        @staticmethod
+        def init_led(): pass
+        @staticmethod
+        def turn_on_led(): pass
+        @staticmethod
+        def turn_off_led(): pass
+        @staticmethod
+        def blink_led(): pass
 
 def shutdown_server():
     func = request.environ.get('werkzeug.server.shutdown')
@@ -64,9 +88,12 @@ log.setLevel(logging.ERROR)
 ############################################################################################################
 
 class LoadCell:
-    def __init__(self):
+    def __init__(self, hx711=None):
         print("[INFO] Initializing LoadCell...")
-        self.hx = HX711(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN)
+        if hx711 is not None:
+            self.hx = hx711
+        else:
+            self.hx = HX711(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN)
         self.ready = False
         self.offset = 0
         self.reference_unit = REFERENCE_UNIT
@@ -74,47 +101,49 @@ class LoadCell:
     def initialize(self):
         print("[INFO] Calibrating and setting up HX711...")
         try:
-            # Set reading format
-            self.hx.setReadingFormat("MSB", "MSB")
-
-            # Automatically set offset
-            print("[INFO] Automatically setting the offset.")
-            self.hx.autosetOffset()
-            self.offset = self.hx.getOffset()
-            print(f"[INFO] Offset set to: {self.offset}")
-
-            # Set reference unit
-            print(f"[INFO] Setting reference unit: {self.reference_unit}")
-            self.hx.setReferenceUnit(self.reference_unit)
-
+            if IS_PI:
+                self.hx.setReadingFormat("MSB", "MSB")
+                print("[INFO] Automatically setting the offset.")
+                self.hx.autosetOffset()
+                self.offset = self.hx.getOffset()
+                print(f"[INFO] Offset set to: {self.offset}")
+                print(f"[INFO] Setting reference unit: {self.reference_unit}")
+                self.hx.setReferenceUnit(self.reference_unit)
+            else:
+                # Emulated HX711: set up as needed
+                self.offset = 0
             print("[INFO] HX711 ready. You can add weight now.")
             self.ready = True
-
         except Exception as e:
             print(f"[ERROR] Failed to initialize LoadCell: {e}")
             self.cleanup()
             led.turn_off_led()
-            os.system('/home/ankleflex/ankleflex-venv/bin/python /home/ankleflex/AnkleFlex/Src/main_dev.py')
             sys.exit()
 
     def get_weight(self):
         if not self.ready:
             print("[WARN] LoadCell not ready.")
             return 0
-        
         try:
-            # Read raw bytes and compute weight
-            raw_bytes = self.hx.getRawBytes()
-            weight_grams = self.hx.rawBytesToWeight(raw_bytes)
-            return round(weight_grams, 2)
+            if IS_PI:
+                raw_bytes = self.hx.getRawBytes()
+                weight_grams = self.hx.rawBytesToWeight(raw_bytes)
+                return round(weight_grams, 2)
+            else:
+                # Emulated HX711: read raw ADC counts and apply the same
+                # offset/calibration arithmetic as the hardware path.
+                raw = self.hx._read()
+                return round((raw - self.offset) / CALIBRATION_FACTOR, 2)
         except Exception as e:
             print(f"[ERROR] Could not read weight: {e}")
             return 0
 
     def get_offset(self):
-        # Return the current offset for reference
         try:
-            return self.hx.getOffset()
+            if IS_PI:
+                return self.hx.getOffset()
+            else:
+                return 0
         except Exception as e:
             print(f"[ERROR] Could not get offset: {e}")
             return 0
@@ -122,70 +151,71 @@ class LoadCell:
     def tare(self):
         print("[INFO] Taring load cell...")
         try:
-            self.hx.autosetOffset()
-            self.offset = self.hx.getOffset()
-            print(f"[INFO] New offset: {self.offset}")
+            if IS_PI:
+                self.hx.autosetOffset()
+                self.offset = self.hx.getOffset()
+                print(f"[INFO] New offset: {self.offset}")
+            else:
+                self.offset = 0
         except Exception as e:
             print(f"[ERROR] Tare failed: {e}")
 
     def cleanup(self):
         print("[INFO] Cleaning up GPIO and HX711...")
-        GPIO.cleanup()
-        try:
-            self.hx.powerDown()
-        except Exception:
-            pass
-        
+        if IS_PI:
+            GPIO.cleanup()
+            try:
+                self.hx.powerDown()
+            except Exception:
+                pass
 ############################################################################################################
 # Section for the button class
 ############################################################################################################  
             
-class Button():
-    def __init__(self,loadcell):
-        # Setup GPIO
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        # Wait for button press
-        print("Press the button!")
-        GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=self.button_callback, bouncetime=100)
-        self.state = GPIO.input(BUTTON_PIN)
-        self.last_time_pressed = time.time()
-        self.mode = -1
-        self.modes = {0: "tare", 1 :"reboot",-1:"error"}
-        self.last_mode = -1
-        self.last_mode_change = time.time()
-        self.loadcell = loadcell
-        while True:
-            if self.mode != self.last_mode:
-                print(f"Mode: {self.modes[self.mode]}")
-                self.last_mode = self.mode
-                if self.mode == 0:
-                    ledBlinkThread = threading.Thread(target=led.blink_led)
-                    ledBlinkThread.start()
-                    self.loadcell.offset = self.loadcell.get_offset()
-                    global maxWeight, minWeight
-                    maxWeight = 0.00000001
-                    minWeight = -0.00000001
-                    
-                    ledBlinkThread.join()
-                elif self.mode == 1:
-                    led.turn_off_led()
-                    os.system("sudo reboot")
-                    print('Rebooting...')
-            time.sleep(min(1, time.time() - self.last_mode_change))
-
-    def button_callback(self, channel):
-        print(".")
-        dt = time.time() - self.last_time_pressed
-        print(f"dt: {dt}")  
-        if dt < 0.1:
-            pass
-        elif (dt < 1):
-            self.mode = 1
-        elif (dt > 1):
+if IS_PI:
+    class Button():
+        def __init__(self,loadcell):
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            print("Press the button!")
+            GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=self.button_callback, bouncetime=100)
+            self.state = GPIO.input(BUTTON_PIN)
+            self.last_time_pressed = time.time()
+            self.mode = -1
+            self.modes = {0: "tare", 1 :"reboot",-1:"error"}
             self.last_mode = -1
-            self.mode = 0
-        self.last_time_pressed = time.time()
+            self.last_mode_change = time.time()
+            self.loadcell = loadcell
+            while True:
+                if self.mode != self.last_mode:
+                    print(f"Mode: {self.modes[self.mode]}")
+                    self.last_mode = self.mode
+                    if self.mode == 0:
+                        ledBlinkThread = threading.Thread(target=led.blink_led)
+                        ledBlinkThread.start()
+                        self.loadcell.offset = self.loadcell.get_offset()
+                        global maxWeight, minWeight
+                        maxWeight = 0.00000001
+                        minWeight = -0.00000001
+                        ledBlinkThread.join()
+                    elif self.mode == 1:
+                        led.turn_off_led()
+                        os.system("sudo reboot")
+                        print('Rebooting...')
+                time.sleep(min(1, time.time() - self.last_mode_change))
+
+        def button_callback(self, channel):
+            print(".")
+            dt = time.time() - self.last_time_pressed
+            print(f"dt: {dt}")  
+            if dt < 0.1:
+                pass
+            elif (dt < 1):
+                self.mode = 1
+            elif (dt > 1):
+                self.last_mode = -1
+                self.mode = 0
+            self.last_time_pressed = time.time()
         
         
 ############################################################################################################
@@ -193,6 +223,8 @@ class Button():
 ############################################################################################################
 
 app = dash.Dash(__name__)
+
+_emulator_visible = not IS_PI
 
 # Threshold constants
 THRESHOLD_UP = 500
@@ -211,7 +243,22 @@ app.layout = html.Div([
         html.Div(id='above-count', style={'font-size': '20px', 'margin': '10px'}),
         html.Div(id='below-count', style={'font-size': '20px', 'margin': '10px'})
     ], style={'display': 'flex', 'justify-content': 'center'}),
-    dcc.Graph(id='graph', style={'height': '85vh', 'width': '98vw'})
+    dcc.Graph(id='graph', style={'height': '85vh', 'width': '98vw'}),
+    # Emulator slider — always in DOM, hidden on Pi
+    html.Div([
+        html.Label('Simulated load (kg)', style={'fontSize': '13px', 'marginBottom': '4px'}),
+        dcc.Slider(
+            id='emulator-slider',
+            min=-50, max=50, step=0.5, value=0,
+            marks={i: f'{i}' for i in range(-50, 51, 10)},
+            tooltip={'placement': 'bottom', 'always_visible': True},
+        )
+    ], style={
+        'position': 'fixed', 'bottom': '8px', 'left': '5%', 'width': '90%',
+        'background': 'rgba(255,255,0,0.15)', 'border': '1px dashed #aaa',
+        'padding': '8px 12px', 'borderRadius': '6px', 'zIndex': 1000,
+        'display': 'block' if _emulator_visible else 'none',
+    }),
 ], style={
     'height': '100vh',
     'width': '100vw',
@@ -224,10 +271,14 @@ app.layout = html.Div([
     [Output('graph', 'figure'),
      Output('above-count', 'children'),
      Output('below-count', 'children')],
-    Input('interval', 'n_intervals')
+    Input('interval', 'n_intervals'),
+    Input('emulator-slider', 'value'),
 )
-def update_graph(n):
+def update_graph(n, emulator_val):
     global loadcell, maxWeight, minWeight, above_threshold_count, below_threshold_count
+
+    if not IS_PI:
+        emulated_hx711.set_weight(emulator_val or 0.0)
 
     data = loadcell.get_weight()
     if data not in [False, -1]:
@@ -244,29 +295,20 @@ def update_graph(n):
     elif weight < THRESHOLD_DOWN:
         below_threshold_count += 1
 
-     # Initialize lists the first time
+    # Initialize lists the first time
     if 'timestamps' not in globals():
         global timestamps, data_points
         timestamps = []
         data_points = []
 
-    # Append new data # Create line chart
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=timestamps,
-        y=data_points,
-        mode='lines+markers',
-        name='Weight',
-        line=dict(width=2)
-    ))
     timestamps.append(time.strftime('%H:%M:%S'))
     data_points.append(weight)
 
-    # Limit list length 
+    # Limit list length
     timestamps[:] = timestamps[-listLength:]
     data_points[:] = data_points[-listLength:]
 
-    # Create line chart
+    fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=timestamps,
         y=data_points,
@@ -322,17 +364,23 @@ if __name__ == '__main__':
     led.turn_on_led()
     try:
         print('Starting LoadCell...')
-        loadcell = LoadCell()
-        print('Starting Button...')
-        buttonThread = threading.Thread(target=Button, args=(loadcell,))
-        loadcell.initialize()
-        buttonThread.daemon = True
-        buttonThread.start()
-        
+        if IS_PI:
+            loadcell = LoadCell()
+            print('Starting Button...')
+            buttonThread = threading.Thread(target=Button, args=(loadcell,))
+            loadcell.initialize()
+            buttonThread.daemon = True
+            buttonThread.start()
+        else:
+            print('Running in emulation mode — no hardware required')
+            emulated_hx711 = EmulatedHX711()
+            loadcell = LoadCell(hx711=emulated_hx711)
+            loadcell.initialize()
         print('Starting app...')
         app.run_server(debug=False, host='0.0.0.0', port=8050)
-    except :
-        buttonThread.join()
+    except Exception as e:
+        if IS_PI:
+            buttonThread.join()
         print('Exiting...')
         loadcell.cleanup()
         led.turn_off_led()
