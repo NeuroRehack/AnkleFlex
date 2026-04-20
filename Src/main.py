@@ -324,7 +324,9 @@ def history_layout():
 def _record_history(weight: float) -> None:
     """Append a weight sample to the history buffers. Called on every interval tick
     regardless of which page is active, so the history is continuous."""
-    global above_threshold_count, below_threshold_count, timestamps, data_points
+    global above_threshold_count, below_threshold_count, timestamps, data_points, maxWeight, minWeight
+    minWeight = min(minWeight, weight)
+    maxWeight = max(maxWeight, weight)
     if weight > THRESHOLD_UP:
         above_threshold_count += 1
     elif weight < THRESHOLD_DOWN:
@@ -357,10 +359,8 @@ def update_bar(n, emulator_val, invert_y, pathname):
         emulated_hx711.set_weight(emulator_val or 0.0)
     raw = loadcell.get_weight()
     _record_history(raw)
-    minWeight = min(minWeight, raw)
-    maxWeight = max(maxWeight, raw)
 
-    fig = px.bar(x=['Weight'], y=[raw], title='Weight (kg)')
+    fig = px.bar(x=['Weight'], y=[raw], title='', labels={'y': 'Weight (kg)'})
     fig.add_shape(type='line', x0=-0.5, y0=maxWeight, x1=0.5, y1=maxWeight, line=dict(color='Red', width=3))
     fig.add_shape(type='line', x0=-0.5, y0=minWeight, x1=0.5, y1=minWeight, line=dict(color='red', width=3))
     fig.add_shape(type='line', x0=-0.5, y0=0, x1=0.5, y1=0, line=dict(color='black', width=3))
