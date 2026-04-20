@@ -1,10 +1,15 @@
 # AnkleFlex — Dash/Plotly force-feedback visualiser
 # Runs on Raspberry Pi (real hardware) or any desktop (emulation mode).
+# Pages:
+#   /         — Live View: real-time bar chart with flip/scale controls
+#   /history  — History:   rolling line chart with threshold zones and tare button
 import sys
 import dash
 from dash import html, dcc
 from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 import plotly.express as px
+import plotly.graph_objects as go
 import time
 import threading
 import queue
@@ -36,6 +41,7 @@ else:
         @staticmethod
         def blink_led(): pass
 
+
 def shutdown_server():
     func = request.environ.get('werkzeug.server.shutdown')
     if func is None:
@@ -53,28 +59,34 @@ def run_with_timeout(func, timeout):
     thread = threading.Thread(target=wrapper)
     thread.start()
     thread.join(timeout)
-
     if thread.is_alive():
         return -1
-    else:
-        return q.get()
+    return q.get()
 
 
 # GPIO pin configuration
-LOADCELL_DOUT_PIN = 2  # GPIO 2 Board pin 3
-LOADCELL_SCK_PIN = 3  # GPIO 3 Board pin 5
-BUTTON_PIN = 17  # GPIO 17 Board pin 11
+LOADCELL_DOUT_PIN = 2   # GPIO 2 Board pin 3
+LOADCELL_SCK_PIN = 3    # GPIO 3 Board pin 5
+BUTTON_PIN = 17         # GPIO 17 Board pin 11
 
-# Calibration factor
-CALIBRATION_FACTOR = -1554  # This value is obtained using the calibration script
+# Calibration factor (obtained using the calibration script)
+CALIBRATION_FACTOR = -1554
 
-# GPIO.setwarnings(False)
+# Threshold constants for the history page
+THRESHOLD_UP = 500
+THRESHOLD_DOWN = -500
+LIST_LENGTH = 60
 
+# Running weight bounds (shared across pages, reset on tare)
 maxWeight = 0.00000001
 minWeight = -0.00000001
-weight = 0
 
-# set log level for webapp
+# History page state
+timestamps: list = []
+data_points: list = []
+above_threshold_count = 0
+below_threshold_count = 0
+
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
@@ -82,7 +94,7 @@ log.setLevel(logging.ERROR)
 # Section for the LoadCell class
 ############################################################################################################
 
-class LoadCell():
+class LoadCell:
     def __init__(self, hx711=None):
         if hx711 is not None:
             # Emulation path: caller supplies a pre-built stub.
@@ -94,45 +106,64 @@ class LoadCell():
                 dout_pin=LOADCELL_DOUT_PIN,
                 pd_sck_pin=LOADCELL_SCK_PIN,
                 channel='A',
-                gain=64
+                gain=64,
             )
+        self.offset = 0
         self.ready = False
-        
+
     def initialize(self):
         print('Calibrating...')
         state = run_with_timeout(self.hx711.reset, 15)
         if state == -1:
-            print('Error initializing')
+            print('Error initializing HX711 (reset timed out)')
             led.turn_off_led()
             self.cleanup()
             if IS_PI:
                 os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main.py')
-            exit()
-            return
+            sys.exit()
 
-        self.offset = run_with_timeout(self.get_offset, 15)
+        self.offset = run_with_timeout(self._measure_offset, 15)
         if self.offset == -1:
-            print('Error initializing')
+            print('Error initializing HX711 (offset timed out)')
             led.turn_off_led()
             self.cleanup()
             if IS_PI:
                 os.system('/home/ankleflex/venv/bin/python /home/ankleflex/main.py')
-            exit()
-            return
-        
+            sys.exit()
 
-    def get_offset(self, times=5):
+        self.ready = True
+        print('HX711 ready.')
+
+    def _measure_offset(self, times=5):
         measures = []
         while len(measures) < times:
             data = self.hx711._read()
             if data is not False and data != -1:
                 measures.append(data)
-                print('*'*len(measures))
+                print('*' * len(measures))
         return sum(measures) / len(measures)
 
     def get_weight(self):
-        measures = self.hx711._read()
-        return (measures - self.offset) / CALIBRATION_FACTOR
+        if not self.ready:
+            return 0
+        try:
+            raw = self.hx711._read()
+            if raw is False or raw == -1:
+                return 0
+            return (raw - self.offset) / CALIBRATION_FACTOR
+        except Exception as e:
+            print(f'[ERROR] Could not read weight: {e}')
+            return 0
+
+    def tare(self):
+        print('Taring...')
+        new_offset = run_with_timeout(self._measure_offset, 15)
+        if new_offset != -1:
+            self.offset = new_offset
+            global maxWeight, minWeight
+            maxWeight = 0.00000001
+            minWeight = -0.00000001
+            print(f'Tare complete. New offset: {self.offset}')
 
     def cleanup(self):
         self.hx711.power_down()
@@ -141,167 +172,271 @@ class LoadCell():
         
         
 ############################################################################################################
-# Section for the button class
-############################################################################################################  
-            
-class Button():
-    def __init__(self,loadcell):
-        # Setup GPIO
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        # Wait for button press
-        print("Press the button!")
-        GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=self.button_callback, bouncetime=100)
-        self.state = GPIO.input(BUTTON_PIN)
-        self.last_time_pressed = time.time()
-        self.mode = -1
-        self.modes = {0: "tare", 1 :"reboot",-1:"error"}
-        self.last_mode = -1
-        self.last_mode_change = time.time()
-        self.loadcell = loadcell
-        while True:
-            if self.mode != self.last_mode:
-                print(f"Mode: {self.modes[self.mode]}")
-                self.last_mode = self.mode
-                if self.mode == 0:
-                    ledBlinkThread = threading.Thread(target=led.blink_led)
-                    ledBlinkThread.start()
-                    self.loadcell.offset = self.loadcell.get_offset()
-                    global maxWeight, minWeight
-                    maxWeight = 0.00000001
-                    minWeight = -0.00000001
-                    
-                    ledBlinkThread.join()
-                elif self.mode == 1:
-                    led.turn_off_led()
-                    os.system("sudo reboot")
-                    print('Rebooting...')
-            time.sleep(min(1, time.time() - self.last_mode_change))
+# Section for the button class (Pi only)
+############################################################################################################
 
-    def button_callback(self, channel):
-        print(".")
-        dt = time.time() - self.last_time_pressed
-        print(f"dt: {dt}")  
-        if dt < 0.1:
-            pass
-        elif (dt < 1):
-            self.mode = 1
-        elif (dt > 1):
+if IS_PI:
+    class Button:
+        def __init__(self, loadcell):
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            print('Press the button!')
+            GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=self.button_callback, bouncetime=100)
+            self.state = GPIO.input(BUTTON_PIN)
+            self.last_time_pressed = time.time()
+            self.mode = -1
+            self.modes = {0: 'tare', 1: 'reboot', -1: 'error'}
             self.last_mode = -1
-            self.mode = 0
-        self.last_time_pressed = time.time()
-        
-        
-############################################################################################################
-# section for the dash app
-############################################################################################################
+            self.last_mode_change = time.time()
+            self.loadcell = loadcell
+            while True:
+                if self.mode != self.last_mode:
+                    print(f'Mode: {self.modes[self.mode]}')
+                    self.last_mode = self.mode
+                    if self.mode == 0:
+                        ledBlinkThread = threading.Thread(target=led.blink_led)
+                        ledBlinkThread.start()
+                        self.loadcell.tare()
+                        ledBlinkThread.join()
+                    elif self.mode == 1:
+                        led.turn_off_led()
+                        os.system('sudo reboot')
+                        print('Rebooting...')
+                time.sleep(min(1, time.time() - self.last_mode_change))
+
+        def button_callback(self, channel):
+            dt = time.time() - self.last_time_pressed
+            if dt < 0.1:
+                pass
+            elif dt < 1:
+                self.mode = 1
+            else:
+                self.last_mode = -1
+                self.mode = 0
+            self.last_time_pressed = time.time()
 
 
-app = dash.Dash(__name__)
+############################################################################################################
+# Section for the Dash app
+############################################################################################################
+
+# suppress_callback_exceptions allows callbacks referencing components that are
+# rendered dynamically (only present on one page at a time).
+app = dash.Dash(__name__, suppress_callback_exceptions=True)
 
 _emulator_visible = not IS_PI
 
+NAV_STYLE = {
+    'display': 'flex', 'gap': '24px', 'padding': '8px 20px',
+    'background': '#f0f0f0', 'borderBottom': '1px solid #ccc',
+    'alignItems': 'center',
+}
+LINK_STYLE = {
+    'textDecoration': 'none', 'color': '#007BFF',
+    'fontWeight': 'bold', 'fontSize': '15px',
+}
+
 app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
     dcc.Interval(id='interval', interval=500, n_intervals=0),
-    # ── Controls row ────────────────────────────────────────────────────────
+
+    # ── Navigation bar ───────────────────────────────────────────────────────
     html.Div([
-        dcc.Checklist(
-            id='invert-y',
-            options=[{'label': ' Flip Y Axis', 'value': 'flip'}],
-            value=[],
-            style={'fontSize': '14px', 'cursor': 'pointer', 'whiteSpace': 'nowrap'}
-        ),
-        html.Span('Scale:', style={'fontSize': '13px', 'whiteSpace': 'nowrap'}),
-        html.Div([
-            dcc.Slider(
-                id='scale-slider',
-                min=0.1, max=10, step=0.1, value=1.0,
-                marks={1: '1×', 2: '2×', 5: '5×', 10: '10×'},
-                tooltip={'placement': 'top', 'always_visible': True},
-            ),
-        ], style={'width': '300px', 'paddingTop': '4px'}),
-    ], style={
-        'position': 'absolute', 'bottom': '90px', 'left': '50%',
-        'transform': 'translateX(-50%)',
-        'zIndex': 1000,
-        'display': 'flex', 'alignItems': 'center', 'gap': '16px',
-        'background': 'rgba(255,255,255,0.9)', 'padding': '8px 16px',
-        'borderRadius': '8px', 'fontSize': '14px',
-        'boxShadow': '0 1px 4px rgba(0,0,0,0.15)',
-    }),
-    dcc.Graph(id='graph', style={'height': '90vh', 'width': '98vw'}),
-    # Emulator slider — always in DOM, hidden on Pi
+        html.Span('AnkleFlex', style={'fontWeight': 'bold', 'fontSize': '16px', 'marginRight': '8px'}),
+        dcc.Link('Live View', href='/', style=LINK_STYLE),
+        dcc.Link('History', href='/history', style=LINK_STYLE),
+    ], style=NAV_STYLE),
+
+    # ── Page content (rendered dynamically by URL) ───────────────────────────
+    html.Div(id='page-content', style={'flex': '1', 'position': 'relative', 'overflow': 'hidden'}),
+
+    # ── Emulator slider — always in DOM, hidden on Pi ────────────────────────
     html.Div([
         html.Label('Simulated load (kg)', style={'fontSize': '13px', 'marginBottom': '4px'}),
         dcc.Slider(
             id='emulator-slider',
-            min=-50, max=50, step=0.5, value=0,
-            marks={i: f'{i}' for i in range(-50, 51, 10)},
-            tooltip={'placement': 'bottom', 'always_visible': True},
-        )
+            min=-1000, max=1000, step=10, value=0,
+            marks={i: f'{i}' for i in range(-1000, 1001, 100)},
+            tooltip={'placement': 'top', 'always_visible': True},
+        ),
     ], style={
-        'position': 'absolute', 'bottom': '8px', 'left': '5%', 'width': '90%',
+        'position': 'fixed', 'bottom': '8px', 'left': '5%', 'width': '90%',
         'background': 'rgba(255,255,0,0.15)', 'border': '1px dashed #aaa',
         'padding': '8px 12px', 'borderRadius': '6px', 'zIndex': 1000,
         'display': 'block' if _emulator_visible else 'none',
     }),
-], style={'height': '100vh', 'width': '100vw', 'display': 'flex', 'justify-content': 'center',
-          'align-items': 'center', 'position': 'relative'})
+
+], style={'display': 'flex', 'flexDirection': 'column', 'height': '100vh', 'width': '100vw'})
+
+
+# ── Live View page layout ─────────────────────────────────────────────────────
+def live_view_layout():
+    return html.Div([
+        html.Div([
+            dcc.Checklist(
+                id='invert-y',
+                options=[{'label': ' Flip Y Axis', 'value': 'flip'}],
+                value=[],
+                style={'fontSize': '14px', 'cursor': 'pointer', 'whiteSpace': 'nowrap'},
+            ),
+            html.Span('Scale:', style={'fontSize': '13px', 'whiteSpace': 'nowrap'}),
+            html.Div([
+                dcc.Slider(
+                    id='scale-slider',
+                    min=0.1, max=10, step=0.1, value=1.0,
+                    marks={1: '1×', 2: '2×', 5: '5×', 10: '10×'},
+                    tooltip={'placement': 'top', 'always_visible': True},
+                ),
+            ], style={'width': '300px', 'paddingTop': '4px'}),
+        ], style={
+            'position': 'absolute', 'bottom': '90px', 'left': '50%',
+            'transform': 'translateX(-50%)', 'zIndex': 1000,
+            'display': 'flex', 'alignItems': 'center', 'gap': '16px',
+            'background': 'rgba(255,255,255,0.9)', 'padding': '8px 16px',
+            'borderRadius': '8px', 'fontSize': '14px',
+            'boxShadow': '0 1px 4px rgba(0,0,0,0.15)',
+        }),
+        dcc.Graph(id='bar-graph', style={'height': '90vh', 'width': '98vw'}),
+    ], style={'position': 'relative', 'height': '100%'})
+
+
+# ── History page layout ───────────────────────────────────────────────────────
+def history_layout():
+    return html.Div([
+        html.Div([
+            html.Button('Tare Load Cell', id='tare-button', n_clicks=0, style={
+                'padding': '10px 20px', 'fontSize': '16px', 'margin': '10px',
+                'backgroundColor': '#007BFF', 'color': 'white',
+                'border': 'none', 'borderRadius': '5px', 'cursor': 'pointer',
+            }),
+            html.Div(id='tare-status', style={'fontSize': '16px', 'margin': '10px', 'color': 'green'}),
+            html.Div(id='above-count', style={'fontSize': '20px', 'margin': '10px'}),
+            html.Div(id='below-count', style={'fontSize': '20px', 'margin': '10px'}),
+        ], style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'flexWrap': 'wrap'}),
+        dcc.Graph(id='line-graph', style={'height': '80vh', 'width': '98vw'}),
+    ], style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center'})
+
+
+############################################################################################################
+# Callbacks
+############################################################################################################
+
+def _record_history(weight: float) -> None:
+    """Append a weight sample to the history buffers. Called on every interval tick
+    regardless of which page is active, so the history is continuous."""
+    global above_threshold_count, below_threshold_count, timestamps, data_points
+    if weight > THRESHOLD_UP:
+        above_threshold_count += 1
+    elif weight < THRESHOLD_DOWN:
+        below_threshold_count += 1
+    timestamps.append(time.strftime('%H:%M:%S'))
+    data_points.append(weight)
+    timestamps[:] = timestamps[-LIST_LENGTH:]
+    data_points[:] = data_points[-LIST_LENGTH:]
+
+
+@app.callback(Output('page-content', 'children'), Input('url', 'pathname'))
+def render_page(pathname):
+    if pathname == '/history':
+        return history_layout()
+    return live_view_layout()
+
 
 @app.callback(
-    Output('graph', 'figure'),
+    Output('bar-graph', 'figure'),
     Input('interval', 'n_intervals'),
     Input('invert-y', 'value'),
     Input('scale-slider', 'value'),
     Input('emulator-slider', 'value'),
+    State('url', 'pathname'),
 )
-def update_graph(n, invert_y, scale, emulator_val):
+def update_bar(n, invert_y, scale, emulator_val, pathname):
+    if pathname != '/' and pathname is not None:
+        raise PreventUpdate
     global loadcell, maxWeight, minWeight
     scale = scale or 1.0
     if not IS_PI:
         emulated_hx711.set_weight(emulator_val or 0.0)
-    data = loadcell.get_weight()
-    raw = data if data not in (False, -1) else 0.0
-
-    # Apply scale and track running min/max on the scaled value
+    raw = loadcell.get_weight()
+    _record_history(raw)
     weight = raw * scale
     minWeight = min(minWeight, weight)
     maxWeight = max(maxWeight, weight)
 
-    # Build the figure; range_y will be overridden below based on the flip state
-    fig = px.bar(x=['Weight'], y=[weight], title='Weight (kg)', range_y=[minWeight*1.1, maxWeight*1.1])
-
-    # add horizontal line  max weight
-    fig.add_shape(
-        type="line",
-        x0=-0.5, y0=maxWeight, x1=0.5, y1=maxWeight,
-        line=dict(color="Red", width=3)
-    )
-    # add horizontal line  min weight
-    fig.add_shape(
-        type="line",
-        x0=-0.5, y0=minWeight, x1=0.5, y1=minWeight,
-        line=dict(color="red", width=3)
-    )
-    # zero baseline
-    fig.add_shape(
-        type="line",
-        x0=-0.5, y0=0, x1=0.5, y1=0,
-        line=dict(color="black", width=3)
-    )
-    # Apply Y axis range; invert when the checkbox is checked.
-    if 'flip' in invert_y:
+    fig = px.bar(x=['Weight'], y=[weight], title='Weight (kg)')
+    fig.add_shape(type='line', x0=-0.5, y0=maxWeight, x1=0.5, y1=maxWeight, line=dict(color='Red', width=3))
+    fig.add_shape(type='line', x0=-0.5, y0=minWeight, x1=0.5, y1=minWeight, line=dict(color='red', width=3))
+    fig.add_shape(type='line', x0=-0.5, y0=0, x1=0.5, y1=0, line=dict(color='black', width=3))
+    if 'flip' in (invert_y or []):
         fig.update_yaxes(range=[maxWeight * 1.1, minWeight * 1.1])
     else:
         fig.update_yaxes(range=[minWeight * 1.1, maxWeight * 1.1])
-
     fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
     return fig
 
+
+@app.callback(
+    [Output('line-graph', 'figure'),
+     Output('above-count', 'children'),
+     Output('below-count', 'children')],
+    Input('interval', 'n_intervals'),
+    Input('emulator-slider', 'value'),
+    State('url', 'pathname'),
+)
+def update_history(n, emulator_val, pathname):
+    if pathname != '/history':
+        raise PreventUpdate
+    global loadcell, above_threshold_count, below_threshold_count
+    if not IS_PI:
+        emulated_hx711.set_weight(emulator_val or 0.0)
+    weight = loadcell.get_weight()
+    _record_history(weight)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=timestamps, y=data_points,
+        mode='lines+markers', name='Weight',
+        line=dict(width=2, color='green'),
+    ))
+    fig.add_hline(y=THRESHOLD_UP, line_dash='dot', line_color='blue',
+                  annotation_text='+500 Threshold', annotation_position='top left')
+    fig.add_hline(y=THRESHOLD_DOWN, line_dash='dot', line_color='blue',
+                  annotation_text='-500 Threshold', annotation_position='bottom left')
+    fig.add_shape(type='rect', xref='paper', yref='y',
+                  x0=0, x1=1, y0=THRESHOLD_UP, y1=5000, fillcolor='green', opacity=0.1, line_width=0)
+    fig.add_shape(type='rect', xref='paper', yref='y',
+                  x0=0, x1=1, y0=-5000, y1=THRESHOLD_DOWN, fillcolor='blue', opacity=0.1, line_width=0)
+    all_vals = data_points + [0]
+    y_min = min(min(all_vals) * 1.1, THRESHOLD_DOWN * 1.5)
+    y_max = max(max(all_vals) * 1.1, THRESHOLD_UP * 1.5)
+    fig.update_layout(
+        title='Weight with Threshold Zones',
+        yaxis_title='Weight',
+        xaxis_title='',
+        showlegend=False,
+        template='plotly_white',
+        margin=dict(l=0, r=0, t=30, b=0),
+        yaxis=dict(range=[y_min, y_max]),
+    )
+    return fig, f'Above +500 count: {above_threshold_count}', f'Below -500 count: {below_threshold_count}'
+
+
+@app.callback(
+    Output('tare-status', 'children'),
+    Input('tare-button', 'n_clicks'),
+    prevent_initial_call=True,
+)
+def tare_load_cell(n_clicks):
+    try:
+        loadcell.tare()
+        return f'Tare complete at {time.strftime("%H:%M:%S")}'
+    except Exception as e:
+        return f'Tare failed: {e}'
+
+
 ############################################################################################################
-# end of dash app   
+# Entry point
 ############################################################################################################
-        
 
 if __name__ == '__main__':
     led.init_led()
