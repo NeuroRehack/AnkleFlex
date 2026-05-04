@@ -3,7 +3,7 @@
 #
 # Run this immediately after first SSH login:
 #
-#   curl -fsSL https://raw.githubusercontent.com/SamiKaab/AnkleFlex/develop/bootstrap.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/NeuroRehack/AnkleFlex/feature/fastapi-migration/bootstrap.sh | bash
 #
 # What it does:
 #   1. Installs git and curl
@@ -17,8 +17,8 @@
 
 set -e
 
-REPO_URL="https://github.com/SamiKaab/AnkleFlex.git"
-BRANCH="develop"
+REPO_URL="https://github.com/NeuroRehack/AnkleFlex.git"
+BRANCH="feature/fastapi-migration"  # update to 'main' after branch is merged
 INSTALL_DIR="$HOME/AnkleFlex"
 
 echo "╔══════════════════════════════════════════╗"

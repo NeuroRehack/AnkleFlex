@@ -72,9 +72,7 @@ sudo nmcli connection add \
     ipv4.route-metric 200 \
     ipv6.method disabled
 
-# Activate the hotspot immediately (safe: wlan0 only, won't affect eth0/SSH)
-sudo nmcli connection up AnkleFlexHotspot 2>/dev/null || true
-echo "    Hotspot profile created and activated"
+echo "    Hotspot profile created (activates on reboot)"
 
 # ── 4. Auto-start on boot (systemd service) ─────────────────────────────────
 echo "[4/4] Installing systemd service..."
@@ -102,12 +100,13 @@ EOF
 sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
 Description=AnkleFlex force feedback app
-After=network.target ankleflex-hotspot.service
+After=network-online.target ankleflex-hotspot.service
 Wants=ankleflex-hotspot.service
 
 [Service]
 Type=simple
 User=$USER
+Environment=ANKLEFLEX_EMULATE_LOADCELL=1
 WorkingDirectory=$REPO_DIR
 ExecStart=$PYTHON Src/main.py
 Restart=always
@@ -128,16 +127,13 @@ echo "    systemd services enabled: ankleflex-hotspot + ankleflex"
 echo ""
 echo "✓ Setup complete."
 echo ""
-echo "  Hotspot is already active — you can join now:"
+echo "  Reboot to activate the hotspot and start the app:"
+echo "    sudo reboot"
+echo ""
+echo "  After reboot:"
 echo "  • Join Wi-Fi:   SSID=AnkleFlex  password=starseng"
 echo "  • Open browser: http://10.42.0.1:8000/"
 echo "  • mDNS URL:     http://ankleflex.local:8000/"
 echo "  • View logs:    tail -f $LOG"
 echo "  • App status:   sudo systemctl status ankleflex"
-echo ""
-echo "  To start the app now (without rebooting):"
-echo "    sudo systemctl start ankleflex"
-echo ""
-echo "  Or reboot for a full clean start:"
-echo "    sudo reboot"
 
