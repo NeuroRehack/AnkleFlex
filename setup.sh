@@ -61,8 +61,8 @@ sudo nmcli connection add \
     type wifi \
     ifname wlan0 \
     con-name AnkleFlexHotspot \
-    autoconnect yes \
-    autoconnect-priority 10 \
+    connection.autoconnect yes \
+    connection.autoconnect-priority 10 \
     ssid AnkleFlex \
     802-11-wireless.mode ap \
     802-11-wireless-security.key-mgmt wpa-psk \
