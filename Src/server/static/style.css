@@ -51,6 +51,48 @@ header h1 {
   text-transform: uppercase;
 }
 
+/* ── Nav bar ──────────────────────────────────────────────────────────────── */
+#nav-bar {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border-bottom: 1px solid #dee2e6;
+  flex-shrink: 0;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  height: 42px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  position: relative;
+  transition: color 0.15s;
+}
+
+.nav-item:hover { color: var(--text); }
+
+.nav-item.active {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.nav-item.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
 #status-indicator {
   display: flex;
   align-items: center;
@@ -145,6 +187,18 @@ main {
 #tare-btn:hover  { background: var(--accent); }
 #tare-btn:active { background: #14253d; }
 
+/* ── Tare feedback ────────────────────────────────────────────────────────── */
+#tare-feedback {
+  font-size: 0.82rem;
+  color: var(--accent);
+  font-weight: 500;
+  min-width: 110px;
+  transition: opacity 0.6s ease;
+  opacity: 1;
+}
+
+#tare-feedback.fade-out { opacity: 0; }
+
 #flip-label {
   display: flex;
   align-items: center;
@@ -213,21 +267,114 @@ main {
 #emulation-panel {
   display: none;           /* shown via JS when state.emulation === true */
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   background: var(--warn-bg);
   border: 2px solid var(--warn-border);
   border-radius: 8px;
-  padding: 10px 14px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-#emulation-label {
+#emulation-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
   color: var(--warn-text);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+#emulation-toggle {
+  font-size: 0.78rem;
+  opacity: 0.7;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+#emulation-slider-row {
+  display: none;
+  padding: 0 14px 10px;
+}
+
+#emulation-panel.expanded #emulation-slider-row {
+  display: block;
 }
 
 #emulation-slider {
   width: 100%;
   accent-color: var(--warn-border);
   cursor: pointer;
+}
+
+/* ── History View ─────────────────────────────────────────────────────────── */
+#view-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#history-chart-container {
+  flex: 1;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  padding: 12px;
+  position: relative;
+  min-height: 0;
+}
+
+#threshold-counters {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.counter-badge {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 28px;
+  gap: 2px;
+}
+
+.counter-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.counter-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.counter-badge.above .counter-value { color: #2dc653; }
+.counter-badge.below .counter-value { color: var(--bar); }
+
+#yrange-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+#yrange-value {
+  min-width: 40px;
+  text-align: center;
 }

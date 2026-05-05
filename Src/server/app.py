@@ -11,6 +11,7 @@ Serves the web UI and provides:
 import asyncio
 import json
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -18,12 +19,20 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
+# ── Constants ────────────────────────────────────────────────────────────────
+HISTORY_LENGTH = 60
+THRESHOLD_UP   = 500
+THRESHOLD_DOWN = -500
+
 # ── Shared state (written by sensor loop, read by SSE clients) ────────────────
 _state: dict = {
     "weight": 0.0,
     "min_weight": 0.0,
     "max_weight": 0.0,
     "emulation": False,
+    "history": [],       # list of {"t": "HH:MM:SS", "w": float}, capped at HISTORY_LENGTH
+    "above_count": 0,    # readings that exceeded THRESHOLD_UP since last tare
+    "below_count": 0,    # readings that fell below THRESHOLD_DOWN since last tare
 }
 
 _loadcell = None
@@ -42,7 +51,7 @@ def configure(loadcell, emulate: bool) -> None:
 
 
 def do_tare() -> None:
-    """Reset session min/max and current weight in shared state.
+    """Reset session min/max, current weight, and history in shared state.
     Thread-safe (GIL protects dict writes).
     The caller is responsible for first invoking loadcell.tare() to
     recalibrate the hardware/emulation zero reference.
@@ -50,6 +59,9 @@ def do_tare() -> None:
     _state["weight"] = 0.0
     _state["min_weight"] = 0.0
     _state["max_weight"] = 0.0
+    _state["history"] = []
+    _state["above_count"] = 0
+    _state["below_count"] = 0
 
 
 # ── Background sensor reader ──────────────────────────────────────────────────
@@ -70,6 +82,15 @@ async def _sensor_loop() -> None:
                     _state["max_weight"] = w
                 if w < _state["min_weight"]:
                     _state["min_weight"] = w
+                # Rolling history buffer
+                _state["history"].append({"t": datetime.now().strftime("%H:%M:%S"), "w": w})
+                if len(_state["history"]) > HISTORY_LENGTH:
+                    _state["history"] = _state["history"][-HISTORY_LENGTH:]
+                # Threshold exceedance counters
+                if w > THRESHOLD_UP:
+                    _state["above_count"] += 1
+                elif w < THRESHOLD_DOWN:
+                    _state["below_count"] += 1
         except Exception as exc:
             # Log but never crash — sensor errors are recoverable
             print(f"[sensor] read error: {exc}")

@@ -15,43 +15,80 @@
     </div>
   </header>
 
+  <nav id="nav-bar">
+    <a href="#live"      class="nav-item" id="nav-live">Live</a>
+    <a href="#history"   class="nav-item" id="nav-history">History</a>
+    <a href="#calibrate" class="nav-item" id="nav-calibrate">Calibrate</a>
+  </nav>
+
   <main>
-    <div id="chart-container">
-      <div id="weight-display">
-        <span id="weight-value">—</span>
-        <span id="weight-unit">kg</span>
+    <!-- ── Live View ─────────────────────────────────────────────────── -->
+    <section id="view-live">
+      <div id="chart-container">
+        <div id="weight-display">
+          <span id="weight-value">—</span>
+          <span id="weight-unit">kg</span>
+        </div>
+        <canvas id="weightChart"></canvas>
       </div>
-      <canvas id="weightChart"></canvas>
-    </div>
 
-    <div id="controls">
-      <button id="tare-btn" onclick="tare()">Tare / Reset</button>
-      <label id="flip-label">
-        <input type="checkbox" id="flip-axis" onchange="toggleAxisFlip(this.checked)">
-        Flip axis
-      </label>
-      <div id="scale-control">
-        <span class="scale-row-label">Scale:</span>
-        <button class="stepper-btn" onclick="stepScale(-0.5)">&#8722;</button>
-        <input type="range" id="scale-slider" min="0.1" max="10" step="0.1" value="1"
-               oninput="setScale(this.value)">
-        <button class="stepper-btn" onclick="stepScale(0.5)">&#43;</button>
-        <span id="scale-slider-value">1.0&times;</span>
+      <div id="controls">
+        <button id="tare-btn" onclick="tare()">Tare / Reset</button>
+        <span id="tare-feedback"></span>
+        <label id="flip-label">
+          <input type="checkbox" id="flip-axis" onchange="toggleAxisFlip(this.checked)">
+          Flip axis
+        </label>
+        <div id="scale-control">
+          <span class="scale-row-label">Scale:</span>
+          <button class="stepper-btn" onclick="stepScale(-0.5)">&#8722;</button>
+          <input type="range" id="scale-slider" min="0.1" max="10" step="0.1" value="1"
+                 oninput="setScale(this.value)">
+          <button class="stepper-btn" onclick="stepScale(0.5)">&#43;</button>
+          <span id="scale-slider-value">1.0&times;</span>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Shown only in emulation mode (controlled by SSE state.emulation) -->
+    <!-- ── History View ──────────────────────────────────────────────── -->
+    <section id="view-history" hidden>
+      <div id="history-chart-container">
+        <canvas id="historyChart"></canvas>
+      </div>
+
+      <div id="threshold-counters">
+        <div class="counter-badge above">
+          <span class="counter-value" id="above-count">0</span>
+          <span class="counter-label">Above ▲</span>
+        </div>
+        <div class="counter-badge below">
+          <span class="counter-value" id="below-count">0</span>
+          <span class="counter-label">Below ▼</span>
+        </div>
+      </div>
+
+      <div id="yrange-control">
+        <span class="scale-row-label">Y Range ±</span>
+        <button class="stepper-btn" onclick="stepHistoryYRange(-100)">&#8722;</button>
+        <span id="yrange-value">500</span>
+        <button class="stepper-btn" onclick="stepHistoryYRange(100)">&#43;</button>
+      </div>
+    </section>
+
+    <!-- ── Emulation banner (shown in both views when emulation active) -->
     <div id="emulation-panel">
-      <div id="emulation-label">
-        ⚠ Emulation mode &mdash; simulated weight:
-        <strong id="slider-value">0.0</strong> kg
+      <div id="emulation-summary" onclick="toggleEmulationExpand()">
+        <span>⚠ Emulation mode &mdash; simulated weight: <strong id="slider-value">0.0</strong> kg</span>
+        <span id="emulation-toggle">▼ expand</span>
       </div>
-      <input
-        type="range"
-        id="emulation-slider"
-        min="-100" max="100" step="0.1" value="0"
-        oninput="setEmulatedWeight(this.value)"
-      >
+      <div id="emulation-slider-row">
+        <input
+          type="range"
+          id="emulation-slider"
+          min="-100" max="100" step="0.1" value="0"
+          oninput="setEmulatedWeight(this.value)"
+        >
+      </div>
     </div>
   </main>
 

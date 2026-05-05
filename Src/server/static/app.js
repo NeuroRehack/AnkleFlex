@@ -1,15 +1,22 @@
 /**
- * AnkleFlex — real-time weight display
- * Connects to /stream (SSE) and updates a Chart.js bar chart.
+ * AnkleFlex — real-time weight display + history view
+ * Connects to /stream (SSE) and updates Chart.js charts.
  */
 
 "use strict";
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let appState = { weight: 0, min_weight: 0, max_weight: 0, emulation: false };
+// ── Constants (must match app.py) ─────────────────────────────────────────
+const THRESHOLD_UP   = 500;
+const THRESHOLD_DOWN = -500;
+
+// ── State ────────────────────────────────────────────────────────────────
+let appState = { weight: 0, min_weight: 0, max_weight: 0, emulation: false, history: [], above_count: 0, below_count: 0 };
 let axisFlipped = false;
 let scale = 1.0;
 let chart = null;
+let historyChart = null;
+let historyYRange = 500;
+let tareFeedbackTimer = null;
 
 // Returns the value with axis direction and scale applied.
 function displayValue(v) { return (axisFlipped ? -v : v) * scale; }
@@ -148,6 +155,13 @@ function updateEmulationPanel() {
   panel.style.display = appState.emulation ? "flex" : "none";
 }
 
+function toggleEmulationExpand() {
+  document.getElementById("emulation-panel").classList.toggle("expanded");
+  const toggle = document.getElementById("emulation-toggle");
+  const expanded = document.getElementById("emulation-panel").classList.contains("expanded");
+  toggle.textContent = expanded ? "▲ collapse" : "▼ expand";
+}
+
 function setConnected(connected) {
   const dot   = document.getElementById("status-dot");
   const label = document.getElementById("status-label");
@@ -175,14 +189,43 @@ function connectStream() {
     updateWeightDisplay();
     updateChart();
     updateEmulationPanel();
+    if (!document.getElementById("view-history").hidden) {
+      updateHistoryChart(appState.history);
+    }
+    updateThresholdCounters(appState.above_count, appState.below_count);
   });
 }
 
-// ── API calls ─────────────────────────────────────────────────────────────────
+// ── Navigation / routing ────────────────────────────────────────────────────
+function showView(hash) {
+  const isHistory = hash === "#history";
+  document.getElementById("view-live").hidden    = isHistory;
+  document.getElementById("view-history").hidden = !isHistory;
+  document.getElementById("nav-live").classList.toggle("active", !isHistory);
+  document.getElementById("nav-history").classList.toggle("active", isHistory);
+  if (isHistory && historyChart) {
+    // Force a resize in case the canvas was hidden during init
+    historyChart.resize();
+    updateHistoryChart(appState.history);
+  }
+}
+
+// ── API calls ────────────────────────────────────────────────────────────────
 function tare() {
   fetch("/tare", { method: "POST" })
     .then((r) => r.json())
+    .then(() => showTareFeedback())
     .catch((err) => console.error("Tare failed:", err));
+}
+
+function showTareFeedback() {
+  const el = document.getElementById("tare-feedback");
+  const now = new Date();
+  const hms = now.toTimeString().slice(0, 8);
+  el.textContent = `Tared at ${hms}`;
+  el.classList.remove("fade-out");
+  clearTimeout(tareFeedbackTimer);
+  tareFeedbackTimer = setTimeout(() => el.classList.add("fade-out"), 2500);
 }
 
 function setEmulatedWeight(value) {
@@ -220,8 +263,120 @@ function stepScale(delta) {
   setScale(Math.round((scale + delta) * 10) / 10);
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+// ── History chart ────────────────────────────────────────────────────────────
+const historyThresholdPlugin = {
+  id: "historyThresholds",
+  afterDraw(ch) {
+    const { ctx, chartArea, scales } = ch;
+    const yScale = scales.y;
+
+    function drawThreshold(value, color, label) {
+      if (value < yScale.min || value > yScale.max) return;
+      const yPx = yScale.getPixelForValue(value);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 4]);
+      ctx.beginPath();
+      ctx.moveTo(chartArea.left, yPx);
+      ctx.lineTo(chartArea.right, yPx);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = color;
+      ctx.font = "bold 11px 'Segoe UI', sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(label, chartArea.right - 4, yPx - 4);
+      ctx.restore();
+    }
+
+    // Shaded zones
+    function drawZone(yTop, yBottom, color) {
+      const top    = Math.max(yScale.getPixelForValue(yTop),    chartArea.top);
+      const bottom = Math.min(yScale.getPixelForValue(yBottom), chartArea.bottom);
+      if (bottom <= top) return;
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.fillRect(chartArea.left, top, chartArea.right - chartArea.left, bottom - top);
+      ctx.restore();
+    }
+
+    drawZone(yScale.max, THRESHOLD_UP,   "rgba(45,198,83,0.07)");
+    drawZone(THRESHOLD_DOWN, yScale.min, "rgba(67,97,238,0.07)");
+    drawThreshold(THRESHOLD_UP,   "rgba(45,198,83,0.8)",  `+${THRESHOLD_UP}`);
+    drawThreshold(THRESHOLD_DOWN, "rgba(67,97,238,0.8)", `${THRESHOLD_DOWN}`);
+  },
+};
+
+function initHistoryChart() {
+  const ctx = document.getElementById("historyChart").getContext("2d");
+  historyChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: "#2dc653",
+        backgroundColor: "rgba(45,198,83,0.10)",
+        borderWidth: 2.5,
+        pointRadius: 3,
+        pointBackgroundColor: "#2dc653",
+        fill: false,
+        tension: 0.3,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 0 },
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: {
+        x: {
+          ticks: {
+            maxTicksLimit: 6,
+            maxRotation: 0,
+            font: { size: 10 },
+            color: "#6c757d",
+          },
+          grid: { display: false },
+        },
+        y: {
+          min: -historyYRange,
+          max:  historyYRange,
+          ticks: { font: { size: 10 }, color: "#6c757d" },
+          grid: { color: "rgba(0,0,0,0.05)" },
+        },
+      },
+    },
+    plugins: [historyThresholdPlugin],
+  });
+}
+
+function updateHistoryChart(history) {
+  if (!historyChart || !history) return;
+  historyChart.data.labels              = history.map(s => s.t);
+  historyChart.data.datasets[0].data    = history.map(s => s.w);
+  historyChart.options.scales.y.min     = -historyYRange;
+  historyChart.options.scales.y.max     =  historyYRange;
+  historyChart.update("none");
+}
+
+function updateThresholdCounters(above, below) {
+  document.getElementById("above-count").textContent = above ?? 0;
+  document.getElementById("below-count").textContent = below ?? 0;
+}
+
+// ── Y-Range stepper (History View) ──────────────────────────────────────────
+function stepHistoryYRange(delta) {
+  historyYRange = Math.min(3000, Math.max(100, historyYRange + delta));
+  document.getElementById("yrange-value").textContent = historyYRange;
+  updateHistoryChart(appState.history);
+}
+
+// ── Boot ────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   initChart();
+  initHistoryChart();
+  showView(window.location.hash || "#live");
+  window.addEventListener("hashchange", () => showView(window.location.hash));
   connectStream();
 });
