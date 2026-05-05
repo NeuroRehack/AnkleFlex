@@ -22,6 +22,15 @@
   </nav>
 
   <main>
+    <div id="shared-controls">
+      <button id="tare-btn" onclick="tare()">Tare / Reset</button>
+      <span id="tare-feedback"></span>
+      <label id="flip-label">
+        <input type="checkbox" id="flip-axis" onchange="toggleAxisFlip(this.checked)">
+        Flip axis
+      </label>
+    </div>
+
     <!-- ── Live View ─────────────────────────────────────────────────── -->
     <section id="view-live">
       <div id="chart-container">
@@ -30,23 +39,6 @@
           <span id="weight-unit">kg</span>
         </div>
         <canvas id="weightChart"></canvas>
-      </div>
-
-      <div id="controls">
-        <button id="tare-btn" onclick="tare()">Tare / Reset</button>
-        <span id="tare-feedback"></span>
-        <label id="flip-label">
-          <input type="checkbox" id="flip-axis" onchange="toggleAxisFlip(this.checked)">
-          Flip axis
-        </label>
-        <div id="scale-control">
-          <span class="scale-row-label">Scale:</span>
-          <button class="stepper-btn" onclick="stepScale(-0.5)">&#8722;</button>
-          <input type="range" id="scale-slider" min="0.1" max="10" step="0.1" value="1"
-                 oninput="setScale(this.value)">
-          <button class="stepper-btn" onclick="stepScale(0.5)">&#43;</button>
-          <span id="scale-slider-value">1.0&times;</span>
-        </div>
       </div>
     </section>
 

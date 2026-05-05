@@ -182,8 +182,8 @@ main {
   padding: 2px 12px 4px;
   border-radius: 8px;
 }
-/* ── Controls ─────────────────────────────────────────────────────────────── */
-#controls {
+/* ── Shared controls ─────────────────────────────────────────────────────── */
+#shared-controls {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,20 +238,6 @@ main {
   cursor: pointer;
 }
 
-/* ── Scale control ───────────────────────────────────────────────────────── */
-#scale-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.scale-row-label {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
 .stepper-btn {
   background: var(--bg);
   border: 2px solid #ced4da;
@@ -270,19 +256,6 @@ main {
 
 .stepper-btn:hover  { background: #dde3f0; }
 .stepper-btn:active { background: #c5cfe8; }
-
-#scale-slider {
-  width: 140px;
-  accent-color: var(--blue);
-  cursor: pointer;
-}
-
-#scale-slider-value {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--blue);
-  min-width: 42px;
-}
 
 /* ── Emulation panel ──────────────────────────────────────────────────────── */
 #emulation-panel {

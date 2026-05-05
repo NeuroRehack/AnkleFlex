@@ -248,24 +248,6 @@ function toggleAxisFlip(checked) {
   updateChart();
 }
 
-// ── Scale ──────────────────────────────────────────────────────────────────────
-function setScale(value) {
-  const v = Math.max(0.1, Math.min(20, parseFloat(value) || 1));
-  scale = v;
-  syncScaleControls();
-  updateWeightDisplay();
-  updateChart();
-}
-
-function syncScaleControls() {
-  document.getElementById("scale-slider").value = scale;
-  document.getElementById("scale-slider-value").textContent = scale.toFixed(1) + "×";
-}
-
-function stepScale(delta) {
-  setScale(Math.round((scale + delta) * 10) / 10);
-}
-
 // ── History chart ────────────────────────────────────────────────────────────
 const historyThresholdPlugin = {
   id: "historyThresholds",
