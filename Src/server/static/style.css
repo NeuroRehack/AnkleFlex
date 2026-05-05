@@ -27,8 +27,8 @@ html, body {
   display: none !important;
 }
 
-#view-live,
-#view-history,
+#view-bar,
+#view-graph,
 #view-calibrate {
   display: none;
   flex-direction: column;
@@ -38,8 +38,8 @@ html, body {
   overflow: hidden;
 }
 
-body[data-view="live"] #view-live,
-body[data-view="history"] #view-history,
+body[data-view="bar"] #view-bar,
+body[data-view="graph"] #view-graph,
 body[data-view="calibrate"] #view-calibrate {
   display: flex;
 }
@@ -193,7 +193,7 @@ main {
 }
 
 #shared-controls,
-#history-controls {
+#graph-controls {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,11 +201,11 @@ main {
   flex-wrap: wrap;
 }
 
-#history-controls {
+#graph-controls {
   display: none;
 }
 
-body[data-view="history"] #history-controls {
+body[data-view="graph"] #graph-controls {
   display: flex;
 }
 
@@ -213,7 +213,7 @@ body[data-view="history"] #history-controls {
   gap: 12px;
 }
 
-#history-controls {
+#graph-controls {
   gap: 10px;
 }
 
@@ -327,8 +327,8 @@ body[data-view="history"] #history-controls {
   cursor: pointer;
 }
 
-/* ── Live View ────────────────────────────────────────────────────────────── */
-#view-live {
+/* ── Bar View ────────────────────────────────────────────────────────────── */
+#view-bar {
   flex-direction: column;
   gap: 12px;
   flex: 1;
@@ -336,8 +336,8 @@ body[data-view="history"] #history-controls {
   overflow: hidden;
 }
 
-/* ── History View ─────────────────────────────────────────────────────────── */
-#view-history {
+/* ── Graph View ─────────────────────────────────────────────────────────── */
+#view-graph {
   flex-direction: column;
   gap: 12px;
   flex: 1;
@@ -345,7 +345,7 @@ body[data-view="history"] #history-controls {
   overflow: hidden;
 }
 
-#history-chart-container {
+#graph-chart-container {
   flex: 1;
   background: var(--surface);
   border-radius: 12px;
@@ -390,15 +390,33 @@ body[data-view="history"] #history-controls {
 .counter-badge.above .counter-value { color: #2dc653; }
 .counter-badge.below .counter-value { color: var(--bar); }
 
-#yrange-control {
-  display: flex;
+#graph-controls {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  flex-shrink: 0;
-  font-size: 0.9rem;
-  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.threshold-toggle,
+.threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
   color: var(--text);
+}
+
+.threshold-row input[type="number"] {
+  width: 90px;
+  padding: 8px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+#show-thresholds {
+  accent-color: var(--blue);
 }
 
 #yrange-value {

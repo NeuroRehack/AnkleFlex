@@ -14,8 +14,11 @@ let appState = { weight: 0, min_weight: 0, max_weight: 0, emulation: false, hist
 let axisFlipped = false;
 let scale = 1.0;
 let chart = null;
-let historyChart = null;
-let historyYRange = 500;
+let graphChart = null;
+let graphYRange = 500;
+let thresholdUp = THRESHOLD_UP;
+let thresholdDown = THRESHOLD_DOWN;
+let showThresholds = true;
 let tareFeedbackTimer = null;
 
 // Returns the value with axis direction and scale applied.
@@ -189,27 +192,32 @@ function connectStream() {
     updateWeightDisplay();
     updateChart();
     updateEmulationPanel();
-    if (document.body.dataset.view === "history" && historyChart) {
-      updateHistoryChart(appState.history);
+    if (document.body.dataset.view === "graph" && graphChart) {
+      updateGraphChart(appState.history);
     }
-    updateThresholdCounters(appState.above_count, appState.below_count);
   });
 }
 
 // ── Navigation / routing ────────────────────────────────────────────────────
 function showView(hash) {
-  const view = hash === "#history" ? "history" : hash === "#calibrate" ? "calibrate" : "live";
+  const view = hash === "#graph" || hash === "#history"
+    ? "graph"
+    : hash === "#calibrate"
+      ? "calibrate"
+      : hash === "#bar" || hash === "#live"
+        ? "bar"
+        : "bar";
   document.body.dataset.view = view;
-  document.getElementById("nav-live").classList.toggle("active", view === "live");
-  document.getElementById("nav-history").classList.toggle("active", view === "history");
+  document.getElementById("nav-bar-view").classList.toggle("active", view === "bar");
+  document.getElementById("nav-graph-view").classList.toggle("active", view === "graph");
   document.getElementById("nav-calibrate").classList.toggle("active", view === "calibrate");
 
-  if (view === "history") {
-    if (!historyChart) {
-      initHistoryChart();
+  if (view === "graph") {
+    if (!graphChart) {
+      initGraphChart();
     }
-    historyChart.resize();
-    updateHistoryChart(appState.history);
+    graphChart.resize();
+    updateGraphChart(appState.history);
   }
 }
 
@@ -246,22 +254,40 @@ function toggleAxisFlip(checked) {
   axisFlipped = checked;
   updateWeightDisplay();
   updateChart();
-  if (historyChart && document.body.dataset.view === "history") {
-    updateHistoryChart(appState.history);
+  if (graphChart && document.body.dataset.view === "graph") {
+    updateGraphChart(appState.history);
   }
 }
 
-function setHistoryYRange(value) {
-  historyYRange = Math.min(3000, Math.max(100, parseInt(value, 10) || 500));
-  document.getElementById("yrange-value").textContent = historyYRange;
-  document.getElementById("yrange-slider").value = historyYRange;
-  updateHistoryChart(appState.history);
+function setGraphYRange(value) {
+  graphYRange = Math.min(3000, Math.max(100, parseInt(value, 10) || 500));
+  document.getElementById("yrange-value").textContent = graphYRange;
+  document.getElementById("yrange-slider").value = graphYRange;
+  updateGraphChart(appState.history);
 }
 
-// ── History chart ────────────────────────────────────────────────────────────
-const historyThresholdPlugin = {
-  id: "historyThresholds",
+function toggleShowThresholds(checked) {
+  showThresholds = !!checked;
+  updateGraphChart(appState.history);
+}
+
+function setThresholdUp(value) {
+  thresholdUp = Math.max(0, Math.min(4000, parseInt(value, 10) || THRESHOLD_UP));
+  document.getElementById("upper-threshold").value = thresholdUp;
+  updateGraphChart(appState.history);
+}
+
+function setThresholdDown(value) {
+  thresholdDown = Math.min(0, Math.max(-4000, parseInt(value, 10) || THRESHOLD_DOWN));
+  document.getElementById("lower-threshold").value = thresholdDown;
+  updateGraphChart(appState.history);
+}
+
+// ── Graph chart ────────────────────────────────────────────────────────────
+const graphThresholdPlugin = {
+  id: "graphThresholds",
   afterDraw(ch) {
+    if (!showThresholds) return;
     const { ctx, chartArea, scales } = ch;
     const yScale = scales.y;
 
@@ -284,7 +310,6 @@ const historyThresholdPlugin = {
       ctx.restore();
     }
 
-    // Shaded zones
     function drawZone(yTop, yBottom, color) {
       const top    = Math.max(yScale.getPixelForValue(yTop),    chartArea.top);
       const bottom = Math.min(yScale.getPixelForValue(yBottom), chartArea.bottom);
@@ -295,23 +320,23 @@ const historyThresholdPlugin = {
       ctx.restore();
     }
 
-    drawZone(yScale.max, THRESHOLD_UP,   "rgba(45,198,83,0.07)");
-    drawZone(THRESHOLD_DOWN, yScale.min, "rgba(67,97,238,0.07)");
-    drawThreshold(THRESHOLD_UP,   "rgba(45,198,83,0.8)",  `+${THRESHOLD_UP}`);
-    drawThreshold(THRESHOLD_DOWN, "rgba(67,97,238,0.8)", `${THRESHOLD_DOWN}`);
+    drawZone(yScale.max, thresholdUp,   "rgba(90,90,90,0.08)");
+    drawZone(thresholdDown, yScale.min, "rgba(90,90,90,0.08)");
+    drawThreshold(thresholdUp,   "rgba(90,90,90,0.8)",  `+${thresholdUp}`);
+    drawThreshold(thresholdDown, "rgba(90,90,90,0.8)", `${thresholdDown}`);
   },
 };
 
-function initHistoryChart() {
-  const ctx = document.getElementById("historyChart").getContext("2d");
-  historyChart = new Chart(ctx, {
+function initGraphChart() {
+  const ctx = document.getElementById("graphChart").getContext("2d");
+  graphChart = new Chart(ctx, {
     type: "line",
     data: {
       labels: [],
       datasets: [{
         data: [],
-        borderColor: "#2dc653",
-        backgroundColor: "rgba(45,198,83,0.10)",
+        borderColor: "rgb(67, 97, 238)",
+        backgroundColor: "rgba(67, 97, 238, 0.12)",
         borderWidth: 2.5,
         pointRadius: 3,
         tension: 0.3,
@@ -333,24 +358,47 @@ function initHistoryChart() {
           grid: { display: false },
         },
         y: {
-          min: -historyYRange,
-          max:  historyYRange,
+          min: -graphYRange,
+          max:  graphYRange,
           ticks: { font: { size: 10 }, color: "#6c757d" },
           grid: { color: "rgba(0,0,0,0.05)" },
         },
       },
     },
-    plugins: [historyThresholdPlugin],
+    plugins: [graphThresholdPlugin],
   });
 }
 
-function updateHistoryChart(history) {
-  if (!historyChart || !history) return;
-  historyChart.data.labels              = history.map(s => s.t);
-  historyChart.data.datasets[0].data    = history.map(s => displayValue(s.w));
-  historyChart.options.scales.y.min     = -historyYRange;
-  historyChart.options.scales.y.max     =  historyYRange;
-  historyChart.update("none");
+function calculateGraphCounters(history) {
+  let above = 0;
+  let below = 0;
+  if (!Array.isArray(history)) {
+    return { above: 0, below: 0 };
+  }
+
+  for (const sample of history) {
+    const value = displayValue(sample.w);
+    if (value > thresholdUp) {
+      above += 1;
+    }
+    if (value < thresholdDown) {
+      below += 1;
+    }
+  }
+
+  return { above, below };
+}
+
+function updateGraphChart(history) {
+  if (!graphChart || !history) return;
+  graphChart.data.labels              = history.map(s => s.t);
+  graphChart.data.datasets[0].data    = history.map(s => displayValue(s.w));
+  graphChart.options.scales.y.min     = -graphYRange;
+  graphChart.options.scales.y.max     =  graphYRange;
+  graphChart.update("none");
+
+  const counters = calculateGraphCounters(history);
+  updateThresholdCounters(counters.above, counters.below);
 }
 
 function updateThresholdCounters(above, below) {
@@ -358,15 +406,15 @@ function updateThresholdCounters(above, below) {
   document.getElementById("below-count").textContent = below ?? 0;
 }
 
-// ── Y-Range stepper (History View) ──────────────────────────────────────────
-function stepHistoryYRange(delta) {
-  setHistoryYRange(historyYRange + delta);
+// ── Y-Range stepper (Graph View) ──────────────────────────────────────────
+function stepGraphYRange(delta) {
+  setGraphYRange(graphYRange + delta);
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   initChart();
-  showView(window.location.hash || "#live");
+  showView(window.location.hash || "#bar");
   window.addEventListener("hashchange", () => showView(window.location.hash));
   connectStream();
 });
