@@ -203,10 +203,13 @@ function showView(hash) {
   document.getElementById("view-history").hidden = !isHistory;
   document.getElementById("nav-live").classList.toggle("active", !isHistory);
   document.getElementById("nav-history").classList.toggle("active", isHistory);
-  if (isHistory && historyChart) {
-    // Force a resize in case the canvas was hidden during init
-    historyChart.resize();
-    updateHistoryChart(appState.history);
+    if (isHistory) {
+      if (!historyChart) {
+        initHistoryChart();
+      }
+      // Force a resize in case the canvas was hidden during init
+      historyChart.resize();
+      updateHistoryChart(appState.history);
   }
 }
 
@@ -319,8 +322,6 @@ function initHistoryChart() {
         backgroundColor: "rgba(45,198,83,0.10)",
         borderWidth: 2.5,
         pointRadius: 3,
-        pointBackgroundColor: "#2dc653",
-        fill: false,
         tension: 0.3,
       }],
     },
@@ -375,7 +376,6 @@ function stepHistoryYRange(delta) {
 // ── Boot ────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   initChart();
-  initHistoryChart();
   showView(window.location.hash || "#live");
   window.addEventListener("hashchange", () => showView(window.location.hash));
   connectStream();

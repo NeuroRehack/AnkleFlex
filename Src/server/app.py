@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
 # ── Constants ────────────────────────────────────────────────────────────────
-HISTORY_LENGTH = 60
+HISTORY_LENGTH = 400
 THRESHOLD_UP   = 500
 THRESHOLD_DOWN = -500
 

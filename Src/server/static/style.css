@@ -23,6 +23,16 @@ html, body {
   height: 100%;
 }
 
+[hidden] {
+  display: none !important;
+}
+
+#view-live[hidden],
+#view-history[hidden],
+#view-calibrate[hidden] {
+  display: none !important;
+}
+
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   background: var(--bg);
@@ -306,6 +316,16 @@ main {
   width: 100%;
   accent-color: var(--warn-border);
   cursor: pointer;
+}
+
+/* ── Live View ────────────────────────────────────────────────────────────── */
+#view-live {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── History View ─────────────────────────────────────────────────────────── */
