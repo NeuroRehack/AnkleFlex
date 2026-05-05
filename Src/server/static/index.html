@@ -22,13 +22,22 @@
   </nav>
 
   <main>
-    <div id="shared-controls">
-      <button id="tare-btn" onclick="tare()">Tare / Reset</button>
-      <span id="tare-feedback"></span>
-      <label id="flip-label">
-        <input type="checkbox" id="flip-axis" onchange="toggleAxisFlip(this.checked)">
-        Flip axis
-      </label>
+    <div id="toolbar">
+      <div id="shared-controls">
+        <button id="tare-btn" onclick="tare()">Tare / Reset</button>
+        <span id="tare-feedback"></span>
+        <label id="flip-label">
+          <input type="checkbox" id="flip-axis" onchange="toggleAxisFlip(this.checked)">
+          Flip axis
+        </label>
+      </div>
+      <div id="history-controls">
+        <span class="scale-row-label">Y Range ±</span>
+        <button class="stepper-btn" onclick="stepHistoryYRange(-100)">&#8722;</button>
+        <input type="range" id="yrange-slider" min="100" max="3000" step="100" value="500" oninput="setHistoryYRange(this.value)">
+        <span id="yrange-value">500</span>
+        <button class="stepper-btn" onclick="stepHistoryYRange(100)">&#43;</button>
+      </div>
     </div>
 
     <!-- ── Live View ─────────────────────────────────────────────────── -->
@@ -59,12 +68,6 @@
         </div>
       </div>
 
-      <div id="yrange-control">
-        <span class="scale-row-label">Y Range ±</span>
-        <button class="stepper-btn" onclick="stepHistoryYRange(-100)">&#8722;</button>
-        <span id="yrange-value">500</span>
-        <button class="stepper-btn" onclick="stepHistoryYRange(100)">&#43;</button>
-      </div>
     </section>
 
     <!-- ── Emulation banner (shown in both views when emulation active) -->

@@ -246,6 +246,16 @@ function toggleAxisFlip(checked) {
   axisFlipped = checked;
   updateWeightDisplay();
   updateChart();
+  if (historyChart && document.body.dataset.view === "history") {
+    updateHistoryChart(appState.history);
+  }
+}
+
+function setHistoryYRange(value) {
+  historyYRange = Math.min(3000, Math.max(100, parseInt(value, 10) || 500));
+  document.getElementById("yrange-value").textContent = historyYRange;
+  document.getElementById("yrange-slider").value = historyYRange;
+  updateHistoryChart(appState.history);
 }
 
 // ── History chart ────────────────────────────────────────────────────────────
@@ -337,7 +347,7 @@ function initHistoryChart() {
 function updateHistoryChart(history) {
   if (!historyChart || !history) return;
   historyChart.data.labels              = history.map(s => s.t);
-  historyChart.data.datasets[0].data    = history.map(s => s.w);
+  historyChart.data.datasets[0].data    = history.map(s => displayValue(s.w));
   historyChart.options.scales.y.min     = -historyYRange;
   historyChart.options.scales.y.max     =  historyYRange;
   historyChart.update("none");
@@ -350,9 +360,7 @@ function updateThresholdCounters(above, below) {
 
 // ── Y-Range stepper (History View) ──────────────────────────────────────────
 function stepHistoryYRange(delta) {
-  historyYRange = Math.min(3000, Math.max(100, historyYRange + delta));
-  document.getElementById("yrange-value").textContent = historyYRange;
-  updateHistoryChart(appState.history);
+  setHistoryYRange(historyYRange + delta);
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────
