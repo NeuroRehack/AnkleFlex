@@ -6,8 +6,8 @@
 "use strict";
 
 // ── Constants (must match app.py) ─────────────────────────────────────────
-const THRESHOLD_UP   = 500;
-const THRESHOLD_DOWN = -500;
+const THRESHOLD_UP   = 30;
+const THRESHOLD_DOWN = -30;
 
 // ── State ────────────────────────────────────────────────────────────────
 let appState = { weight: 0, min_weight: 0, max_weight: 0, emulation: false, history: [], above_count: 0, below_count: 0 };
@@ -15,7 +15,7 @@ let axisFlipped = false;
 let scale = 1.0;
 let chart = null;
 let graphChart = null;
-let graphYRange = 500;
+let graphYRange = 45;
 let thresholdUp = THRESHOLD_UP;
 let thresholdDown = THRESHOLD_DOWN;
 let showThresholds = true;

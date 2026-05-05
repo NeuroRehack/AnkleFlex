@@ -38,16 +38,16 @@
         </label>
         <label class="threshold-row">
           Upper threshold
-          <input type="number" id="upper-threshold" min="0" max="4000" step="10" value="500" oninput="setThresholdUp(this.value)">
+          <input type="number" id="upper-threshold" min="0" max="90" step="1" value="30" oninput="setThresholdUp(this.value)">
         </label>
         <label class="threshold-row">
           Lower threshold
-          <input type="number" id="lower-threshold" min="-4000" max="0" step="10" value="-500" oninput="setThresholdDown(this.value)">
+          <input type="number" id="lower-threshold" min="-90" max="0" step="1" value="-30" oninput="setThresholdDown(this.value)">
         </label>
         <span class="scale-row-label">Y Range ±</span>
         <button class="stepper-btn" onclick="stepGraphYRange(-100)">&#8722;</button>
-        <input type="range" id="yrange-slider" min="100" max="3000" step="100" value="500" oninput="setGraphYRange(this.value)">
-        <span id="yrange-value">500</span>
+        <input type="range" id="yrange-slider" min="10" max="90" step="1" value="45" oninput="setGraphYRange(this.value)">
+        <span id="yrange-value">45</span>
         <button class="stepper-btn" onclick="stepGraphYRange(100)">&#43;</button>
       </div>
     </div>
