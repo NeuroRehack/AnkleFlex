@@ -290,6 +290,10 @@ const graphThresholdPlugin = {
     if (!showThresholds) return;
     const { ctx, chartArea, scales } = ch;
     const yScale = scales.y;
+    const displayedUpper = displayValue(thresholdUp);
+    const displayedLower = displayValue(thresholdDown);
+    const topZone = axisFlipped ? displayedLower : displayedUpper;
+    const bottomZone = axisFlipped ? displayedUpper : displayedLower;
 
     function drawThreshold(value, color, label) {
       if (value < yScale.min || value > yScale.max) return;
@@ -320,10 +324,10 @@ const graphThresholdPlugin = {
       ctx.restore();
     }
 
-    drawZone(yScale.max, thresholdUp,   "rgba(90,90,90,0.08)");
-    drawZone(thresholdDown, yScale.min, "rgba(90,90,90,0.08)");
-    drawThreshold(thresholdUp,   "rgba(90,90,90,0.8)",  `+${thresholdUp}`);
-    drawThreshold(thresholdDown, "rgba(90,90,90,0.8)", `${thresholdDown}`);
+    drawZone(yScale.max, topZone,   "rgba(90,90,90,0.08)");
+    drawZone(bottomZone, yScale.min, "rgba(90,90,90,0.08)");
+    drawThreshold(displayedUpper, "rgba(90,90,90,0.8)",  `+${thresholdUp}`);
+    drawThreshold(displayedLower, "rgba(90,90,90,0.8)", `${thresholdDown}`);
   },
 };
 
@@ -377,7 +381,7 @@ function calculateGraphCounters(history) {
   }
 
   for (const sample of history) {
-    const value = displayValue(sample.w);
+    const value = sample.w;
     if (value > thresholdUp) {
       above += 1;
     }
