@@ -27,10 +27,21 @@ html, body {
   display: none !important;
 }
 
-#view-live[hidden],
-#view-history[hidden],
-#view-calibrate[hidden] {
-  display: none !important;
+#view-live,
+#view-history,
+#view-calibrate {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body[data-view="live"] #view-live,
+body[data-view="history"] #view-history,
+body[data-view="calibrate"] #view-calibrate {
+  display: flex;
 }
 
 body {
@@ -320,7 +331,6 @@ main {
 
 /* ── Live View ────────────────────────────────────────────────────────────── */
 #view-live {
-  display: flex;
   flex-direction: column;
   gap: 12px;
   flex: 1;
@@ -330,7 +340,6 @@ main {
 
 /* ── History View ─────────────────────────────────────────────────────────── */
 #view-history {
-  display: flex;
   flex-direction: column;
   gap: 12px;
   flex: 1;

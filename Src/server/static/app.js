@@ -189,7 +189,7 @@ function connectStream() {
     updateWeightDisplay();
     updateChart();
     updateEmulationPanel();
-    if (!document.getElementById("view-history").hidden) {
+    if (document.body.dataset.view === "history" && historyChart) {
       updateHistoryChart(appState.history);
     }
     updateThresholdCounters(appState.above_count, appState.below_count);
@@ -198,18 +198,18 @@ function connectStream() {
 
 // ── Navigation / routing ────────────────────────────────────────────────────
 function showView(hash) {
-  const isHistory = hash === "#history";
-  document.getElementById("view-live").hidden    = isHistory;
-  document.getElementById("view-history").hidden = !isHistory;
-  document.getElementById("nav-live").classList.toggle("active", !isHistory);
-  document.getElementById("nav-history").classList.toggle("active", isHistory);
-    if (isHistory) {
-      if (!historyChart) {
-        initHistoryChart();
-      }
-      // Force a resize in case the canvas was hidden during init
-      historyChart.resize();
-      updateHistoryChart(appState.history);
+  const view = hash === "#history" ? "history" : hash === "#calibrate" ? "calibrate" : "live";
+  document.body.dataset.view = view;
+  document.getElementById("nav-live").classList.toggle("active", view === "live");
+  document.getElementById("nav-history").classList.toggle("active", view === "history");
+  document.getElementById("nav-calibrate").classList.toggle("active", view === "calibrate");
+
+  if (view === "history") {
+    if (!historyChart) {
+      initHistoryChart();
+    }
+    historyChart.resize();
+    updateHistoryChart(appState.history);
   }
 }
 
