@@ -1,16 +1,14 @@
 """LED control and emulation for AnkleFlex."""
 
 import logging
-import os
+
 import time
 
 logger = logging.getLogger("ankleflex.led")
 
-EMULATE = os.environ.get("ANKLEFLEX_EMULATE_LOADCELL", "0") == "1"
-
-if not EMULATE:
+try:
     import RPi.GPIO as GPIO
-
+    EMULATION = False
     # Set the GPIO mode
     GPIO.setmode(GPIO.BCM)
     LED_GPIO = 26
@@ -40,8 +38,8 @@ if not EMULATE:
     def cleanup():
         """Clean up the LED GPIO pin."""
         GPIO.cleanup()
-
-else:
+except (ImportError, ModuleNotFoundError):
+    EMULATION = True
 
     def init_led():
         """Emulated LED init (noop)."""

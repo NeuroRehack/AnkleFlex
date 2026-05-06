@@ -45,20 +45,28 @@ class LoadCell:
         if hx711 is not None:
             # Emulation path: caller supplies a pre-built HX711 stub.
             self.hx711 = hx711
+            self._GPIO = None
+            self.emulation = True
         else:
-            # Hardware path: import GPIO/HX711 here so non-Pi systems can still
-            # import this module without failing at import time.
-            import RPi.GPIO as GPIO
-            from hx711 import HX711
-
-            self._GPIO = GPIO
-            logger.info("Initializing HX711...")
-            self.hx711 = HX711(
-                dout_pin=LOADCELL_DOUT_PIN,
-                pd_sck_pin=LOADCELL_SCK_PIN,
-                channel="A",
-                gain=64,
-            )
+            try:
+                import RPi.GPIO as GPIO
+                from hx711 import HX711
+                self._GPIO = GPIO
+                logger.info("Initializing HX711 (hardware mode)...")
+                self.hx711 = HX711(
+                    dout_pin=LOADCELL_DOUT_PIN,
+                    pd_sck_pin=LOADCELL_SCK_PIN,
+                    channel="A",
+                    gain=64,
+                )
+                self.emulation = False
+            except (ImportError, ModuleNotFoundError):
+                logger.info("[EMULATION] LoadCell using emulated HX711")
+                from emulation.hx711 import EmulatedHX711
+                from hardware.loadcell import CALIBRATION_FACTOR
+                self.hx711 = EmulatedHX711(calibration_factor=CALIBRATION_FACTOR)
+                self._GPIO = None
+                self.emulation = True
         self.offset: float = 0.0
         self.ready: bool = False
 

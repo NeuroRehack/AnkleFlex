@@ -28,9 +28,24 @@ class Button:
             loadcell: LoadCell instance (used to recalibrate offset on tare).
             on_tare:  Optional callback invoked after a tare operation completes.
                       Called from the button thread — must be thread-safe.
-
         """
-        import RPi.GPIO as GPIO
+        try:
+            import RPi.GPIO as GPIO
+            EMULATION = False
+        except (ImportError, ModuleNotFoundError):
+            EMULATION = True
+            # Minimal mock GPIO for emulation
+            class MockGPIO:
+                BCM = None
+                IN = None
+                PUD_UP = None
+                BOTH = None
+                def setmode(self, *a, **kw): pass
+                def setup(self, *a, **kw): pass
+                def add_event_detect(self, *a, **kw): pass
+                def cleanup(self): pass
+            GPIO = MockGPIO()
+            logger.info("[EMULATION] Button using mock GPIO")
 
         import led  # led.py is on sys.path via Src/
 
