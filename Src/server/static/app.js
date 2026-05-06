@@ -260,7 +260,7 @@ function toggleAxisFlip(checked) {
 }
 
 function setGraphYRange(value) {
-  graphYRange = Math.min(3000, Math.max(100, parseInt(value, 10) || 500));
+  graphYRange = Math.min(100, Math.max(10, parseInt(value, 10)));
   document.getElementById("yrange-value").textContent = graphYRange;
   document.getElementById("yrange-slider").value = graphYRange;
   updateGraphChart(appState.history);
