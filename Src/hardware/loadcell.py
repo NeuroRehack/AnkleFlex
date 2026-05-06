@@ -59,7 +59,22 @@ class LoadCell:
                     channel="A",
                     gain=64,
                 )
-                self.emulation = False
+                # Runtime hardware presence check: try a quick read/reset
+                try:
+                    # Try reset (should succeed if chip is present)
+                    reset_ok = _run_with_timeout(self.hx711.reset, 2)
+                    # Try a read (should not be False/-1 if chip is present)
+                    read_val = _run_with_timeout(self.hx711._read, 2)
+                    if reset_ok is False or reset_ok == -1 or read_val is False or read_val == -1:
+                        raise RuntimeError("HX711 not responding")
+                    self.emulation = False
+                except Exception as e:
+                    logger.warning(f"[LoadCell] HX711 not detected or unresponsive: {e}. Falling back to emulation.")
+                    from emulation.hx711 import EmulatedHX711
+                    from hardware.loadcell import CALIBRATION_FACTOR
+                    self.hx711 = EmulatedHX711(calibration_factor=CALIBRATION_FACTOR)
+                    self._GPIO = None
+                    self.emulation = True
             except (ImportError, ModuleNotFoundError):
                 logger.info("[EMULATION] LoadCell using emulated HX711")
                 from emulation.hx711 import EmulatedHX711

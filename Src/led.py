@@ -6,6 +6,7 @@ import time
 
 logger = logging.getLogger("ankleflex.led")
 
+
 try:
     import RPi.GPIO as GPIO
     EMULATION = False
@@ -15,19 +16,40 @@ try:
 
     def init_led():
         """Initialize the LED GPIO pin."""
-        GPIO.setup(LED_GPIO, GPIO.OUT)
-        GPIO.output(LED_GPIO, GPIO.LOW)
+        try:
+            GPIO.setup(LED_GPIO, GPIO.OUT)
+            GPIO.output(LED_GPIO, GPIO.LOW)
+            # Runtime hardware presence check: try to set pin high/low
+            GPIO.output(LED_GPIO, GPIO.HIGH)
+            GPIO.output(LED_GPIO, GPIO.LOW)
+        except Exception as e:
+            global EMULATION
+            logger.warning(f"[LED] GPIO not detected or unresponsive: {e}. Falling back to emulation.")
+            EMULATION = True
+            # Redefine all functions to emulation versions
+            def emu_init_led():
+                logger.info("[EMULATION] LED init (noop)")
+            def emu_turn_on_led():
+                logger.info("[EMULATION] LED on (noop)")
+            def emu_turn_off_led():
+                logger.info("[EMULATION] LED off (noop)")
+            def emu_blink_led():
+                logger.info("[EMULATION] LED blink (noop)")
+            def emu_cleanup():
+                logger.info("[EMULATION] LED cleanup (noop)")
+            globals()['init_led'] = emu_init_led
+            globals()['turn_on_led'] = emu_turn_on_led
+            globals()['turn_off_led'] = emu_turn_off_led
+            globals()['blink_led'] = emu_blink_led
+            globals()['cleanup'] = emu_cleanup
 
     def turn_on_led():
-        """Turn on the LED."""
         GPIO.output(LED_GPIO, GPIO.HIGH)
 
     def turn_off_led():
-        """Turn off the LED."""
         GPIO.output(LED_GPIO, GPIO.LOW)
 
     def blink_led():
-        """Blink the LED 10 times."""
         for _ in range(10):
             turn_on_led()
             time.sleep(0.1)
@@ -36,29 +58,23 @@ try:
         turn_on_led()
 
     def cleanup():
-        """Clean up the LED GPIO pin."""
         GPIO.cleanup()
 except (ImportError, ModuleNotFoundError):
     EMULATION = True
 
     def init_led():
-        """Emulated LED init (noop)."""
         logger.info("[EMULATION] LED init (noop)")
 
     def turn_on_led():
-        """Emulated LED on (noop)."""
         logger.info("[EMULATION] LED on (noop)")
 
     def turn_off_led():
-        """Emulated LED off (noop)."""
         logger.info("[EMULATION] LED off (noop)")
 
     def blink_led():
-        """Emulated LED blink (noop)."""
         logger.info("[EMULATION] LED blink (noop)")
 
     def cleanup():
-        """Emulated LED cleanup (noop)."""
         logger.info("[EMULATION] LED cleanup (noop)")
 
 

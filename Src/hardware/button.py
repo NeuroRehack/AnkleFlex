@@ -32,6 +32,36 @@ class Button:
         try:
             import RPi.GPIO as GPIO
             EMULATION = False
+            import led  # led.py is on sys.path via Src/
+            self._GPIO = GPIO
+            self._led = led
+            self.loadcell = loadcell
+            self.on_tare = on_tare
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=self._callback, bouncetime=100)
+            # Runtime hardware presence check: try to read pin state
+            try:
+                _ = GPIO.setup(BUTTON_PIN, GPIO.IN)
+                # Try reading the pin (should not throw if present)
+                _ = GPIO.input(BUTTON_PIN)
+            except Exception as e:
+                logger.warning(f"[Button] GPIO not detected or unresponsive: {e}. Falling back to emulation.")
+                EMULATION = True
+                # Minimal mock GPIO for emulation
+                class MockGPIO:
+                    BCM = None
+                    IN = None
+                    PUD_UP = None
+                    BOTH = None
+                    def setmode(self, *a, **kw): pass
+                    def setup(self, *a, **kw): pass
+                    def add_event_detect(self, *a, **kw): pass
+                    def cleanup(self): pass
+                    def input(self, *a, **kw): return 1
+                GPIO = MockGPIO()
+                self._GPIO = GPIO
+                logger.info("[EMULATION] Button using mock GPIO (runtime fallback)")
         except (ImportError, ModuleNotFoundError):
             EMULATION = True
             # Minimal mock GPIO for emulation
@@ -44,19 +74,14 @@ class Button:
                 def setup(self, *a, **kw): pass
                 def add_event_detect(self, *a, **kw): pass
                 def cleanup(self): pass
+                def input(self, *a, **kw): return 1
             GPIO = MockGPIO()
-            logger.info("[EMULATION] Button using mock GPIO")
-
-        import led  # led.py is on sys.path via Src/
-
-        self._GPIO = GPIO
-        self._led = led
-        self.loadcell = loadcell
-        self.on_tare = on_tare
-
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=self._callback, bouncetime=100)
+            import led  # led.py is on sys.path via Src/
+            self._GPIO = GPIO
+            self._led = led
+            self.loadcell = loadcell
+            self.on_tare = on_tare
+            logger.info("[EMULATION] Button using mock GPIO (import fallback)")
 
         self._last_press = time.time()
         self._mode = -1
