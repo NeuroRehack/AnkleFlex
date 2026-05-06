@@ -1,1 +1,1 @@
-# FastAPI server for AnkleFlex
+"""FastAPI server package for AnkleFlex."""

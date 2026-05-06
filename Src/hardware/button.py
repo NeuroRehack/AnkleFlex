@@ -1,18 +1,17 @@
-"""
-Physical button handler for AnkleFlex (Raspberry Pi only).
+"""Physical button handler for AnkleFlex (Raspberry Pi only).
 
 Button behaviour:
-  - Long press (> 1 s between releases): tare / reset
-  - Quick second press (< 1 s after first release): reboot Pi
+    - Long press (> 1 s between releases): tare / reset
+    - Quick second press (< 1 s after first release): reboot Pi
 
 Run Button.run() in a daemon thread.
 """
 
+import logging
 import os
 import threading
 import time
-import logging
-from typing import Callable, Optional
+from collections.abc import Callable
 
 logger = logging.getLogger("ankleflex.button")
 
@@ -20,14 +19,19 @@ BUTTON_PIN = 17  # GPIO 17 / Board pin 11
 
 
 class Button:
-    def __init__(self, loadcell, on_tare: Optional[Callable] = None):
-        """
+    """Button handler for AnkleFlex physical button."""
+
+    def __init__(self, loadcell, on_tare: Callable | None = None):
+        """Initialize the Button handler.
+
         Args:
             loadcell: LoadCell instance (used to recalibrate offset on tare).
             on_tare:  Optional callback invoked after a tare operation completes.
                       Called from the button thread — must be thread-safe.
+
         """
         import RPi.GPIO as GPIO
+
         import led  # led.py is on sys.path via Src/
 
         self._GPIO = GPIO
@@ -37,9 +41,7 @@ class Button:
 
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(
-            BUTTON_PIN, GPIO.BOTH, callback=self._callback, bouncetime=100
-        )
+        GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=self._callback, bouncetime=100)
 
         self._last_press = time.time()
         self._mode = -1
@@ -83,4 +85,5 @@ class Button:
         self._last_press = time.time()
 
     def cleanup(self) -> None:
+        """Clean up GPIO resources for the button."""
         self._GPIO.cleanup()

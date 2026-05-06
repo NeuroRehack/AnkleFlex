@@ -1,21 +1,22 @@
-"""
-Real LoadCell implementation using HX711 ADC.
+"""Real LoadCell implementation using HX711 ADC.
+
 Only works on Raspberry Pi with the load cell hardware connected.
 """
 
+import logging
 import queue
 import threading
-import logging
 
 logger = logging.getLogger("ankleflex.loadcell")
 
-LOADCELL_DOUT_PIN = 2   # GPIO 2 / Board pin 3
-LOADCELL_SCK_PIN = 3    # GPIO 3 / Board pin 5
+LOADCELL_DOUT_PIN = 2  # GPIO 2 / Board pin 3
+LOADCELL_SCK_PIN = 3  # GPIO 3 / Board pin 5
 CALIBRATION_FACTOR = -1554  # Obtained from calibration script
 
 
 def _run_with_timeout(func, timeout: float):
     """Run a no-argument callable in a thread with a timeout.
+
     Returns -1 if the timeout is exceeded, otherwise the function's result.
     """
     q: queue.Queue = queue.Queue()
@@ -40,14 +41,16 @@ class LoadCell:
     """
 
     def __init__(self, hx711=None) -> None:
+        """Initialize the LoadCell object."""
         if hx711 is not None:
             # Emulation path: caller supplies a pre-built HX711 stub.
             self.hx711 = hx711
         else:
             # Hardware path: import GPIO/HX711 here so non-Pi systems can still
             # import this module without failing at import time.
+            import RPi.GPIO as GPIO
             from hx711 import HX711
-            import RPi.GPIO as GPIO  # noqa
+
             self._GPIO = GPIO
             logger.info("Initializing HX711...")
             self.hx711 = HX711(
@@ -83,8 +86,10 @@ class LoadCell:
         return sum(measures) / len(measures)
 
     def tare(self) -> None:
-        """Re-zero the load cell: re-sample the HX711 offset so the current
-        load becomes the new zero reference, matching the original behaviour."""
+        """Re-zero the load cell: re-sample the HX711 offset so the current.
+
+        load becomes the new zero reference, matching the original behaviour.
+        """
         new_offset = _run_with_timeout(self.get_offset, 15)
         if new_offset != -1:
             self.offset = new_offset
@@ -98,10 +103,13 @@ class LoadCell:
 
     def set_weight(self, kg: float) -> None:
         """Delegate to the underlying HX711 stub (emulation only).
-        Raises AttributeError if called against real hardware."""
+
+        Raises AttributeError if called against real hardware.
+        """
         self.hx711.set_weight(kg)
 
     def cleanup(self) -> None:
+        """Clean up GPIO resources for the load cell."""
         if hasattr(self.hx711, "power_down"):
             self.hx711.power_down()
         if hasattr(self, "_GPIO"):

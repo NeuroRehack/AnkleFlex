@@ -1,5 +1,4 @@
-"""
-Emulated HX711 — replaces the hardware ADC for development on non-Pi systems.
+"""Emulated HX711 — replaces the hardware ADC for development on non-Pi systems.
 
 Provides the same interface used by LoadCell (_read, reset) so that the real
 LoadCell class can run completely unchanged in emulation mode.
@@ -18,6 +17,7 @@ class EmulatedHX711:
     """Drop-in for hx711.HX711. Converts a slider kg value to raw ADC counts."""
 
     def __init__(self, calibration_factor: float) -> None:
+        """Initialize the emulated HX711."""
         self._calibration_factor = calibration_factor
         self._weight_kg: float = 0.0
         logger.info("[EmulatedHX711] initialized (calibration_factor=%s)", calibration_factor)

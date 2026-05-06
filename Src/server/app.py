@@ -1,5 +1,4 @@
-"""
-FastAPI application for AnkleFlex.
+"""FastAPI application for AnkleFlex.
 
 Serves the web UI and provides:
   GET  /          → index.html
@@ -8,24 +7,24 @@ Serves the web UI and provides:
   GET  /status    → One-shot JSON state snapshot
   POST /emulation/weight → Set simulated weight (emulation mode only)
 """
+
 import asyncio
 import json
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
-
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
-import logging
 
 logger = logging.getLogger("ankleflex.server.app")
 
 # ── Constants ────────────────────────────────────────────────────────────────
 HISTORY_LENGTH = 400
-THRESHOLD_UP   = 500
+THRESHOLD_UP = 500
 THRESHOLD_DOWN = -500
 
 # ── Shared state (written by sensor loop, read by SSE clients) ────────────────
@@ -34,9 +33,9 @@ _state: dict = {
     "min_weight": 0.0,
     "max_weight": 0.0,
     "emulation": False,
-    "history": [],       # list of {"t": "HH:MM:SS", "w": float}, capped at HISTORY_LENGTH
-    "above_count": 0,    # readings that exceeded THRESHOLD_UP since last tare
-    "below_count": 0,    # readings that fell below THRESHOLD_DOWN since last tare
+    "history": [],  # list of {"t": "HH:MM:SS", "w": float}, capped at HISTORY_LENGTH
+    "above_count": 0,  # readings that exceeded THRESHOLD_UP since last tare
+    "below_count": 0,  # readings that fell below THRESHOLD_DOWN since last tare
 }
 
 _loadcell = None
@@ -45,6 +44,7 @@ _STATIC = Path(__file__).parent / "static"
 
 
 # ── Public API for main.py ────────────────────────────────────────────────────
+
 
 def configure(loadcell, emulate: bool) -> None:
     """Wire up the loadcell and emulation flag before starting uvicorn."""
@@ -56,6 +56,7 @@ def configure(loadcell, emulate: bool) -> None:
 
 def do_tare() -> None:
     """Reset session min/max, current weight, and history in shared state.
+
     Thread-safe (GIL protects dict writes).
     The caller is responsible for first invoking loadcell.tare() to
     recalibrate the hardware/emulation zero reference.
@@ -70,11 +71,12 @@ def do_tare() -> None:
 
 # ── Background sensor reader ──────────────────────────────────────────────────
 
-_SENSOR_HZ = 20          # target sensor poll rate
+_SENSOR_HZ = 20  # target sensor poll rate
 _SENSOR_INTERVAL = 1 / _SENSOR_HZ
 
+
 async def _sensor_loop() -> None:
-    """Reads the load cell at 20 Hz and updates shared state."""
+    """Read the load cell at 20 Hz and update shared state."""
     loop = asyncio.get_running_loop()
     while True:
         try:
@@ -103,6 +105,7 @@ async def _sensor_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """FastAPI lifespan context manager to run the sensor loop."""
     task = asyncio.create_task(_sensor_loop())
     yield
     task.cancel()
@@ -120,11 +123,14 @@ app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 @app.get("/", include_in_schema=False)
 async def index():
+    """Serve the main index.html page."""
     return FileResponse(_STATIC / "index.html")
 
 
 @app.get("/stream", summary="Server-Sent Events — pushes state at 20 Hz")
 async def stream(request: Request):
+    """Stream state updates to the client at 20 Hz using SSE."""
+
     async def generator():
         try:
             while True:
@@ -140,6 +146,7 @@ async def stream(request: Request):
 
 @app.post("/tare", summary="Reset session min/max and recalibrate offset")
 async def tare():
+    """Reset session min/max and recalibrate the load cell offset."""
     # Run the (potentially blocking) hardware tare in a thread executor so we
     # don't stall the async event loop.  For emulation this returns instantly.
     if _loadcell is not None:
@@ -151,11 +158,13 @@ async def tare():
 
 @app.get("/status", summary="One-shot state snapshot (no streaming)")
 async def status():
+    """Return a one-shot snapshot of the current state."""
     return JSONResponse(_state)
 
 
 @app.post("/emulation/weight", summary="Set simulated weight (emulation mode only)")
 async def set_emulated_weight(request: Request):
+    """Set the simulated weight value (emulation mode only)."""
     if not _emulate:
         return JSONResponse({"error": "not in emulation mode"}, status_code=403)
     body = await request.json()

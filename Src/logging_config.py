@@ -1,7 +1,11 @@
+"""Logging configuration for AnkleFlex."""
+
 import logging
 import os
 
+
 def setup_logging():
+    """Set up logging configuration from environment variable."""
     level = os.environ.get("ANKLEFLEX_LOG_LEVEL", "INFO").upper()
     logging.basicConfig(
         level=level,
