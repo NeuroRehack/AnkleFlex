@@ -2,8 +2,12 @@
 Real LoadCell implementation using HX711 ADC.
 Only works on Raspberry Pi with the load cell hardware connected.
 """
+
 import queue
 import threading
+import logging
+
+logger = logging.getLogger("ankleflex.loadcell")
 
 LOADCELL_DOUT_PIN = 2   # GPIO 2 / Board pin 3
 LOADCELL_SCK_PIN = 3    # GPIO 3 / Board pin 5
@@ -45,7 +49,7 @@ class LoadCell:
             from hx711 import HX711
             import RPi.GPIO as GPIO  # noqa
             self._GPIO = GPIO
-            print("[LoadCell] Initializing HX711...")
+            logger.info("Initializing HX711...")
             self.hx711 = HX711(
                 dout_pin=LOADCELL_DOUT_PIN,
                 pd_sck_pin=LOADCELL_SCK_PIN,
@@ -57,7 +61,7 @@ class LoadCell:
 
     def initialize(self) -> None:
         """Reset and calibrate the HX711. Raises RuntimeError on timeout."""
-        print("[LoadCell] Calibrating...")
+        logger.info("Calibrating...")
         state = _run_with_timeout(self.hx711.reset, 15)
         if state == -1:
             raise RuntimeError("[LoadCell] Timeout resetting HX711")
@@ -66,7 +70,7 @@ class LoadCell:
             raise RuntimeError("[LoadCell] Timeout getting offset")
         self.offset = offset
         self.ready = True
-        print(f"[LoadCell] Ready. Offset={self.offset:.1f}")
+        logger.info(f"Ready. Offset={self.offset:.1f}")
 
     def get_offset(self, times: int = 5) -> float:
         """Read raw HX711 values `times` times and return the average."""
@@ -75,7 +79,7 @@ class LoadCell:
             data = self.hx711._read()
             if data is not False and data != -1:
                 measures.append(data)
-                print("*" * len(measures))
+                logger.debug(f"Offset measure {len(measures)}/{times}")
         return sum(measures) / len(measures)
 
     def tare(self) -> None:

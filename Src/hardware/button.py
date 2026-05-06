@@ -7,10 +7,14 @@ Button behaviour:
 
 Run Button.run() in a daemon thread.
 """
+
 import os
 import threading
 import time
+import logging
 from typing import Callable, Optional
+
+logger = logging.getLogger("ankleflex.button")
 
 BUTTON_PIN = 17  # GPIO 17 / Board pin 11
 
@@ -54,7 +58,7 @@ class Button:
             time.sleep(min(1.0, time.time() - self._last_mode_change))
 
     def _do_tare(self) -> None:
-        print("[Button] Tare triggered")
+        logger.info("Tare triggered")
         blink = threading.Thread(target=self._led.blink_led, daemon=True)
         blink.start()
         self.loadcell.tare()
@@ -63,7 +67,7 @@ class Button:
         blink.join()
 
     def _do_reboot(self) -> None:
-        print("[Button] Reboot triggered")
+        logger.warning("Reboot triggered")
         self._led.turn_off_led()
         os.system("sudo reboot")
 

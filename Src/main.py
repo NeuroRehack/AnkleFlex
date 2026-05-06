@@ -11,14 +11,18 @@ Usage:
     # Hardware mode (Raspberry Pi with load cell connected)
     python Src/main.py
 """
+
 import os
 import threading
-
+import logging
 import uvicorn
+from logging_config import setup_logging
 
 # ── Mode selection ─────────────────────────────────────────────────────────────
 EMULATE = os.environ.get("ANKLEFLEX_EMULATE_LOADCELL", "0") == "1"
-print(f"[AnkleFlex] emulation={'ON' if EMULATE else 'OFF'}")
+setup_logging()
+logger = logging.getLogger("ankleflex.main")
+logger.info(f"emulation={'ON' if EMULATE else 'OFF'}")
 
 # LoadCell and CALIBRATION_FACTOR can always be imported — hardware GPIO imports
 # are deferred inside LoadCell.__init__, so this is safe on non-Pi systems.
@@ -49,7 +53,7 @@ def main() -> None:
         btn_thread = threading.Thread(target=btn.run, daemon=True)
         btn_thread.start()
 
-    print("[AnkleFlex] Starting server → http://0.0.0.0:8000/")
+    logger.info("Starting server → http://0.0.0.0:8000/")
     try:
         uvicorn.run(app, host="0.0.0.0", port=8000, log_level="warning")
     finally:

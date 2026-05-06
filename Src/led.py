@@ -1,5 +1,9 @@
+
 import os
 import time
+import logging
+
+logger = logging.getLogger("ankleflex.led")
 
 EMULATE = os.environ.get("ANKLEFLEX_EMULATE_LOADCELL", "0") == "1"
 
@@ -32,19 +36,19 @@ if not EMULATE:
 
 else:
     def init_led():
-        print("[EMULATION] LED init (noop)")
+        logger.info("[EMULATION] LED init (noop)")
 
     def turn_on_led():
-        print("[EMULATION] LED on (noop)")
+        logger.info("[EMULATION] LED on (noop)")
 
     def turn_off_led():
-        print("[EMULATION] LED off (noop)")
+        logger.info("[EMULATION] LED off (noop)")
 
     def blink_led():
-        print("[EMULATION] LED blink (noop)")
+        logger.info("[EMULATION] LED blink (noop)")
 
     def cleanup():
-        print("[EMULATION] LED cleanup (noop)")
+        logger.info("[EMULATION] LED cleanup (noop)")
 
 if __name__ == '__main__':
     init_led()

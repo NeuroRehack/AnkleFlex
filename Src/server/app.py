@@ -16,8 +16,12 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
+
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
+import logging
+
+logger = logging.getLogger("ankleflex.server.app")
 
 # ── Constants ────────────────────────────────────────────────────────────────
 HISTORY_LENGTH = 400
@@ -93,7 +97,7 @@ async def _sensor_loop() -> None:
                     _state["below_count"] += 1
         except Exception as exc:
             # Log but never crash — sensor errors are recoverable
-            print(f"[sensor] read error: {exc}")
+            logger.error(f"[sensor] read error: {exc}")
         await asyncio.sleep(_SENSOR_INTERVAL)
 
 
