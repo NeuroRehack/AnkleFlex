@@ -17,6 +17,7 @@ let chart = null;
 let graphChart = null;
 let graphYRange = 45;
 let thresholdUp = THRESHOLD_UP;
+let graphXRange = 200; // Added X-axis range
 let thresholdDown = THRESHOLD_DOWN;
 let showThresholds = true;
 let tareFeedbackTimer = null;
@@ -202,15 +203,12 @@ function connectStream() {
 function showView(hash) {
   const view = hash === "#graph" || hash === "#history"
     ? "graph"
-    : hash === "#calibrate"
-      ? "calibrate"
-      : hash === "#bar" || hash === "#live"
-        ? "bar"
-        : "bar";
+    : hash === "#bar" || hash === "#live"
+      ? "bar"
+      : "bar";
   document.body.dataset.view = view;
   document.getElementById("nav-bar-view").classList.toggle("active", view === "bar");
   document.getElementById("nav-graph-view").classList.toggle("active", view === "graph");
-  document.getElementById("nav-calibrate").classList.toggle("active", view === "calibrate");
 
   if (view === "graph") {
     if (!graphChart) {
@@ -272,14 +270,44 @@ function toggleShowThresholds(checked) {
 }
 
 function setThresholdUp(value) {
-  thresholdUp = Math.max(0, Math.min(4000, parseInt(value, 10) || THRESHOLD_UP));
+  let up = parseFloat(value);
+  if (isNaN(up)) up = thresholdUp;
+  if (up < thresholdDown) {
+    up = thresholdDown;
+  }
+  thresholdUp = up;
   document.getElementById("upper-threshold").value = thresholdUp;
+  if (thresholdDown > thresholdUp) {
+    thresholdDown = thresholdUp;
+    document.getElementById("lower-threshold").value = thresholdDown;
+  }
+  // Send to backend
+  fetch("/thresholds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ upper: thresholdUp, lower: thresholdDown })
+  });
   updateGraphChart(appState.history);
 }
 
 function setThresholdDown(value) {
-  thresholdDown = Math.min(0, Math.max(-4000, parseInt(value, 10) || THRESHOLD_DOWN));
+  let down = parseFloat(value);
+  if (isNaN(down)) down = thresholdDown;
+  if (down > thresholdUp) {
+    down = thresholdUp;
+  }
+  thresholdDown = down;
   document.getElementById("lower-threshold").value = thresholdDown;
+  if (thresholdUp < thresholdDown) {
+    thresholdUp = thresholdDown;
+    document.getElementById("upper-threshold").value = thresholdUp;
+  }
+  // Send to backend
+  fetch("/thresholds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ upper: thresholdUp, lower: thresholdDown })
+  });
   updateGraphChart(appState.history);
 }
 
@@ -401,13 +429,15 @@ function updateGraphChart(history) {
   graphChart.options.scales.y.max     =  graphYRange;
   graphChart.update("none");
 
-  const counters = calculateGraphCounters(history);
-  updateThresholdCounters(counters.above, counters.below);
+  updateAllCounters();
 }
 
-function updateThresholdCounters(above, below) {
-  document.getElementById("above-count").textContent = above ?? 0;
-  document.getElementById("below-count").textContent = below ?? 0;
+function updateAllCounters() {
+  document.getElementById("lower-up-count").textContent = appState.lower_up ?? 0;
+  document.getElementById("lower-down-count").textContent = appState.lower_down ?? 0;
+  document.getElementById("upper-up-count").textContent = appState.upper_up ?? 0;
+  document.getElementById("upper-down-count").textContent = appState.upper_down ?? 0;
+  document.getElementById("sequence-count").textContent = appState.sequence_count ?? 0;
 }
 
 // ── Y-Range stepper (Graph View) ──────────────────────────────────────────
@@ -416,7 +446,22 @@ function stepGraphYRange(delta) {
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // Fetch backend thresholds and set UI
+  try {
+    const resp = await fetch("/status");
+    if (resp.ok) {
+      const data = await resp.json();
+      if (typeof data.threshold_up !== "undefined") {
+        thresholdUp = data.threshold_up;
+        document.getElementById("upper-threshold").value = thresholdUp;
+      }
+      if (typeof data.threshold_down !== "undefined") {
+        thresholdDown = data.threshold_down;
+        document.getElementById("lower-threshold").value = thresholdDown;
+      }
+    }
+  } catch {}
   initChart();
   showView(window.location.hash || "#bar");
   window.addEventListener("hashchange", () => showView(window.location.hash));

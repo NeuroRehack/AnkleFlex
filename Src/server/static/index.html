@@ -18,7 +18,6 @@
   <nav id="nav-bar">
     <a href="#bar"      class="nav-item" id="nav-bar-view">Bar</a>
     <a href="#graph"    class="nav-item" id="nav-graph-view">Graph</a>
-    <a href="#calibrate" class="nav-item" id="nav-calibrate">Calibrate</a>
   </nav>
 
   <main>
@@ -38,17 +37,23 @@
         </label>
         <label class="threshold-row">
           Upper threshold
-          <input type="number" id="upper-threshold" min="0" max="90" step="1" value="30" oninput="setThresholdUp(this.value)">
+          <input type="number" id="upper-threshold" step="1" value="30" oninput="setThresholdUp(this.value)">
         </label>
         <label class="threshold-row">
           Lower threshold
-          <input type="number" id="lower-threshold" min="-90" max="0" step="1" value="-30" oninput="setThresholdDown(this.value)">
+          <input type="number" id="lower-threshold" step="1" value="-30" oninput="setThresholdDown(this.value)">
         </label>
         <span class="scale-row-label">Y Range ±</span>
         <button class="stepper-btn" onclick="stepGraphYRange(-10)">&#8722;</button>
         <input type="range" id="yrange-slider" min="10" max="90" step="1" value="45" oninput="setGraphYRange(this.value)">
         <span id="yrange-value">45</span>
         <button class="stepper-btn" onclick="stepGraphYRange(10)">&#43;</button>
+        <br>
+        <span class="scale-row-label">Sample Window (X axis)</span>
+        <button class="stepper-btn" onclick="stepGraphXRange(-50)">&#8722;</button>
+        <input type="range" id="xrange-slider" min="50" max="400" step="10" value="200" oninput="setGraphXRange(this.value)">
+        <span id="xrange-value">200</span>
+        <button class="stepper-btn" onclick="stepGraphXRange(50)">&#43;</button>
       </div>
     </div>
 
@@ -70,13 +75,25 @@
       </div>
 
       <div id="threshold-counters">
-        <div class="counter-badge above">
-          <span class="counter-value" id="above-count">0</span>
-          <span class="counter-label">Above ▲</span>
+        <div class="counter-badge">
+          <span class="counter-value" id="lower-up-count">0</span>
+          <span class="counter-label">Lower Up (↓ → ↑)</span>
         </div>
-        <div class="counter-badge below">
-          <span class="counter-value" id="below-count">0</span>
-          <span class="counter-label">Below ▼</span>
+        <div class="counter-badge">
+          <span class="counter-value" id="lower-down-count">0</span>
+          <span class="counter-label">Lower Down (↑ → ↓)</span>
+        </div>
+        <div class="counter-badge">
+          <span class="counter-value" id="upper-up-count">0</span>
+          <span class="counter-label">Upper Up (↓ → ↑)</span>
+        </div>
+        <div class="counter-badge">
+          <span class="counter-value" id="upper-down-count">0</span>
+          <span class="counter-label">Upper Down (↑ → ↓)</span>
+        </div>
+        <div class="counter-badge sequence">
+          <span class="counter-value" id="sequence-count">0</span>
+          <span class="counter-label">Full Upward Sequence</span>
         </div>
       </div>
 

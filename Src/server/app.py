@@ -3,7 +3,7 @@
 Serves the web UI and provides:
   GET  /          → index.html
   GET  /stream    → Server-Sent Events (state at 20 Hz)
-  POST /tare      → Reset session min/max; recalibrate offset on hardware
+    POST /tare      → Reset session min/max
   GET  /status    → One-shot JSON state snapshot
   POST /emulation/weight → Set simulated weight (emulation mode only)
 """
@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Body, FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
@@ -34,8 +34,13 @@ _state: dict = {
     "max_weight": 0.0,
     "emulation": False,
     "history": [],  # list of {"t": "HH:MM:SS", "w": float}, capped at HISTORY_LENGTH
-    "above_count": 0,  # readings that exceeded THRESHOLD_UP since last tare
-    "below_count": 0,  # readings that fell below THRESHOLD_DOWN since last tare
+    "lower_up": 0,    # below lower threshold to above lower threshold
+    "lower_down": 0,  # above lower threshold to below lower threshold
+    "upper_up": 0,    # below upper threshold to above upper threshold
+    "upper_down": 0,  # above upper threshold to below upper threshold
+    "sequence_count": 0,  # lower up followed by upper up
+    "threshold_up": 30,   # default, will be set by UI
+    "threshold_down": -30 # default, will be set by UI
 }
 
 _loadcell = None
@@ -59,14 +64,17 @@ def do_tare() -> None:
 
     Thread-safe (GIL protects dict writes).
     The caller is responsible for first invoking loadcell.tare() to
-    recalibrate the hardware/emulation zero reference.
+    reset the hardware/emulation session state.
     """
     _state["weight"] = 0.0
     _state["min_weight"] = 0.0
     _state["max_weight"] = 0.0
     _state["history"] = []
-    _state["above_count"] = 0
-    _state["below_count"] = 0
+    _state["lower_up"] = 0
+    _state["lower_down"] = 0
+    _state["upper_up"] = 0
+    _state["upper_down"] = 0
+    _state["sequence_count"] = 0
 
 
 # ── Background sensor reader ──────────────────────────────────────────────────
@@ -78,6 +86,8 @@ _SENSOR_INTERVAL = 1 / _SENSOR_HZ
 async def _sensor_loop() -> None:
     """Read the load cell at 20 Hz and update shared state."""
     loop = asyncio.get_running_loop()
+    prev_w = None
+    lower_up_pending = False
     while True:
         try:
             raw = await loop.run_in_executor(None, _loadcell.get_weight)
@@ -92,13 +102,29 @@ async def _sensor_loop() -> None:
                 _state["history"].append({"t": datetime.now().strftime("%H:%M:%S"), "w": w})
                 if len(_state["history"]) > HISTORY_LENGTH:
                     _state["history"] = _state["history"][-HISTORY_LENGTH:]
-                # Threshold exceedance counters
-                if w > THRESHOLD_UP:
-                    _state["above_count"] += 1
-                elif w < THRESHOLD_DOWN:
-                    _state["below_count"] += 1
+
+                # Use dynamic thresholds from state
+                threshold_up = _state.get("threshold_up", 30)
+                threshold_down = _state.get("threshold_down", -30)
+
+                if prev_w is not None:
+                    # Lower threshold crossings
+                    if prev_w >= threshold_down and w < threshold_down:
+                        _state["lower_down"] += 1
+                        lower_up_pending = False
+                    elif prev_w < threshold_down and w >= threshold_down:
+                        _state["lower_up"] += 1
+                        lower_up_pending = True
+                    # Upper threshold crossings
+                    if prev_w <= threshold_up and w > threshold_up:
+                        _state["upper_up"] += 1
+                        if lower_up_pending:
+                            _state["sequence_count"] += 1
+                            lower_up_pending = False
+                    elif prev_w > threshold_up and w <= threshold_up:
+                        _state["upper_down"] += 1
+                prev_w = w
         except Exception as exc:
-            # Log but never crash — sensor errors are recoverable
             logger.error(f"[sensor] read error: {exc}")
         await asyncio.sleep(_SENSOR_INTERVAL)
 
@@ -144,9 +170,9 @@ async def stream(request: Request):
     return EventSourceResponse(generator())
 
 
-@app.post("/tare", summary="Reset session min/max and recalibrate offset")
+@app.post("/tare", summary="Reset session min/max")
 async def tare():
-    """Reset session min/max and recalibrate the load cell offset."""
+    """Reset session min/max for the load cell."""
     # Run the (potentially blocking) hardware tare in a thread executor so we
     # don't stall the async event loop.  For emulation this returns instantly.
     if _loadcell is not None:
@@ -172,3 +198,15 @@ async def set_emulated_weight(request: Request):
     if hasattr(_loadcell, "set_weight"):
         _loadcell.set_weight(weight)
     return {"ok": True}
+
+
+@app.post("/thresholds", summary="Update threshold values")
+async def update_thresholds(payload: dict = Body(...)):
+    """Update threshold values from the UI."""
+    up = payload.get("upper")
+    down = payload.get("lower")
+    if up is not None:
+        _state["threshold_up"] = float(up)
+    if down is not None:
+        _state["threshold_down"] = float(down)
+    return {"ok": True, "threshold_up": _state["threshold_up"], "threshold_down": _state["threshold_down"]}
