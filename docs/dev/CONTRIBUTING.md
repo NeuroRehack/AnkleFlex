@@ -1,4 +1,4 @@
-# AnkleFlex — Contributing
+﻿# AnkleFlex -- Contributing
 
 See also: [REQUIREMENTS.md](REQUIREMENTS.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
 
@@ -29,7 +29,7 @@ python Src/main.py
 
 ## 2. Testing Strategy
 
-### Stage 1 · Development on Windows (no hardware) — ✅ complete
+### Stage 1 · Development on Windows (no hardware) -- ✅ complete
 
 - Set `ANKLEFLEX_EMULATE_LOADCELL=1` and run `python Src/main.py`
 - Use the emulation slider (−100 to +100 kg) in the web UI to test weight changes
@@ -37,7 +37,7 @@ python Src/main.py
 - Verify: moving slider to negative values shows bar below zero; MIN line appears
 - Test with multiple browser tabs open simultaneously
 
-### Stage 2 · Raspberry Pi without load cell hardware — ⬜ pending
+### Stage 2 · Raspberry Pi without load cell hardware -- ⬜ pending
 
 - SSH into Pi, clone repo, run `uv sync`
 - Set `ANKLEFLEX_EMULATE_LOADCELL=1`, start the app
@@ -45,7 +45,7 @@ python Src/main.py
 - Verify: SSE stream reaches remote browser, chart works, tare button works
 - Verify: auto-start after `sudo reboot`
 
-### Stage 3 · Raspberry Pi with full hardware — ⬜ pending (requires physical device)
+### Stage 3 · Raspberry Pi with full hardware -- ⬜ pending (requires physical device)
 
 - Unset `ANKLEFLEX_EMULATE_LOADCELL`
 - Verify: load cell reads, LED status indicator, physical button tare, physical button reboot
@@ -79,7 +79,7 @@ Browsers auto-reconnect SSE after ~3 seconds. The server's async generator **mus
 
 ### P-05 · Single Uvicorn worker only
 
-Running `uvicorn --workers N` (N > 1) creates N separate processes, each spawning their own GPIO reader thread — they will fight over the HX711 pins. Always run with a **single worker**.
+Running `uvicorn --workers N` (N > 1) creates N separate processes, each spawning their own GPIO reader thread -- they will fight over the HX711 pins. Always run with a **single worker**.
 
 ### P-06 · Pi hotspot IP range
 
@@ -95,7 +95,7 @@ On Pi 4B, a single Uvicorn worker handles this load easily. On Pi 3B/3B+ it shou
 
 ### P-09 · `0.0 == False` in Python
 
-The HX711 library signals a failed read by returning `False`. Python's `==` operator considers `0.0 == False` to be `True`, so `if value in (False, -1)` will silently discard legitimate zero readings. Always use `if value is False` (identity check). See [ARCHITECTURE.md](ARCHITECTURE.md#python-gotcha-00--false) for detail.
+The HX711 library signals a failed read by returning `False`. Python's `==` operator considers `0.0 == False` to be `True`, so `if value in (False, -1)` will silently discard legitimate zero readings. Always use `if value is False` (identity check). See [ARCHITECTURE.md](ARCHITECTURE.md#python-gotcha-00--false) for detail. See also [../../TECHSPEC.md](../../TECHSPEC.md) for the full design rationale.
 
 ---
 
@@ -103,10 +103,10 @@ The HX711 library signals a failed read by returning `False`. Python's `==` oper
 
 - [x] Design and document architecture
 - [x] Add `fastapi`, `uvicorn[standard]`, `sse-starlette` to `pyproject.toml`; remove `dash`, `plotly`, `pandas`
-- [x] Create `Src/hardware/` — `LoadCell` with hx711 injection, `Button` with `on_tare` callback
-- [x] Create `Src/emulation/hx711.py` — `EmulatedHX711` mocks only `_read()` and `reset()`
-- [x] Create `Src/server/app.py` — FastAPI app with SSE, tare, status, emulation endpoints
-- [x] Write `Src/server/static/` — `index.html`, `style.css`, `app.js` (Chart.js + EventSource)
+- [x] Create `Src/hardware/` -- `LoadCell` with hx711 injection, `Button` with `on_tare` callback
+- [x] Create `Src/emulation/hx711.py` -- `EmulatedHX711` mocks only `_read()` and `reset()`
+- [x] Create `Src/server/app.py` -- FastAPI app with SSE, tare, status, emulation endpoints
+- [x] Write `Src/server/static/` -- `index.html`, `style.css`, `app.js` (Chart.js + EventSource)
 - [x] Vendor `chart.min.js` into `Src/server/static/vendor/`
 - [x] Rewrite `Src/main.py` as slim entry point
 - [x] Rewrite `setup.sh` for uv-based Pi deployment
@@ -115,4 +115,4 @@ The HX711 library signals a failed read by returning `False`. Python's `==` oper
 - [x] Fix chart Y-axis: handle negative values from initial render
 - [x] Test Stage 1 (Windows emulation) ✅
 - [ ] Test Stage 2 (Pi, emulation mode)
-- [ ] Test Stage 3 (Pi, full hardware) — requires physical device
+- [ ] Test Stage 3 (Pi, full hardware) -- requires physical device

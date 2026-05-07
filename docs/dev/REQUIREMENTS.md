@@ -1,6 +1,6 @@
-# AnkleFlex — Software Requirements
+﻿# AnkleFlex -- Software Requirements
 
-> **Status:** Approved — April 2026
+> **Status:** Approved -- April 2026
 > **Branch:** `develop`
 
 See also: [ARCHITECTURE.md](ARCHITECTURE.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
@@ -11,17 +11,17 @@ See also: [ARCHITECTURE.md](ARCHITECTURE.md) · [CONTRIBUTING.md](CONTRIBUTING.m
 
 AnkleFlex is a portable biofeedback device for ankle rehabilitation in clinical and research settings. A load cell (TAL220B via HX711 ADC) is connected to a Raspberry Pi 4B. The Pi reads force data continuously and serves a web interface accessible to any device on the same local network.
 
-There is **no physical screen** on the Pi — all interaction is through a browser on an external device.
+There is **no physical screen** on the Pi -- all interaction is through a browser on an external device.
 
 ### Key constraints
 
 | Constraint | Detail |
 |---|---|
-| Portable | Pi hosts its own WiFi hotspot — no hospital/external network |
+| Portable | Pi hosts its own WiFi hotspot -- no hospital/external network |
 | No internet | Hospital environment; no CDN links anywhere in the stack |
 | No screen | Web-only UI; must be usable on a tablet at arm's length |
 | No hardware during dev | All development done on Windows; emulation mode required |
-| Clinical environment | Simple, reliable, patient-safe UI — no developer tools visible |
+| Clinical environment | Simple, reliable, patient-safe UI -- no developer tools visible |
 
 ---
 
@@ -62,16 +62,16 @@ There is **no physical screen** on the Pi — all interaction is through a brows
 - The application **must** start automatically when the Pi boots
 - Implementation: `crontab @reboot` (current) or systemd service (preferred for v2)
 
-### FR-06 · Session recording *(v2 — future)*
+### FR-06 · Session recording *(v2 -- future)*
 
 - The system **should** be able to record a session of timestamped weight readings
 - A session record **must** include: start time, end time, configured sample rate, raw readings array
 - Sessions **must** persist to disk (survive Pi reboot)
 - Sessions **must** be downloadable as CSV from the web UI
 
-### FR-07 · Settings *(v2 — future)*
+### FR-07 · Settings *(v2 -- future)*
 
-- Target weight goal line (kg) — displayed as a horizontal line on the chart
+- Target weight goal line (kg) -- displayed as a horizontal line on the chart
 - Sample rate (Hz)
 - Session / patient label (no PII stored on device)
 

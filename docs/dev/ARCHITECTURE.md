@@ -1,6 +1,6 @@
-# AnkleFlex — Architecture
+﻿# AnkleFlex -- Architecture
 
-> **Status:** Current — April 2026
+> **Status:** Current -- April 2026
 > **Branch:** `develop`
 
 See also: [REQUIREMENTS.md](REQUIREMENTS.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
@@ -14,7 +14,7 @@ See also: [REQUIREMENTS.md](REQUIREMENTS.md) · [CONTRIBUTING.md](CONTRIBUTING.m
 | SBC | Raspberry Pi 4B | Primary target; future upgrade to Pi 5 possible |
 | Load cell | TAL220B 5 kg straight bar | Measures ankle dorsiflexion/plantarflexion force |
 | ADC | HX711 | GPIO: DOUT = pin 2, SCK = pin 3 |
-| LED | Generic + 330 Ω resistor | GPIO 26 — status indicator |
+| LED | Generic + 330 Ω resistor | GPIO 26 -- status indicator |
 | Button | Tactile push button | GPIO 17, pull-up; tare / reboot modes |
 | Network | Pi WiFi hotspot via `nmcli` | SSID: `AnkleFlex`, password: `starseng` |
 
@@ -24,7 +24,7 @@ See also: [REQUIREMENTS.md](REQUIREMENTS.md) · [CONTRIBUTING.md](CONTRIBUTING.m
 Pi hotspot (10.42.0.1)
     │
     ├── Clinician laptop / tablet (browser → http://ankleflex.local:8000/)
-    └── Patient tablet (browser, optional — same URL)
+    └── Patient tablet (browser, optional -- same URL)
 ```
 
 **Fallback:** If mDNS (`ankleflex.local`) fails on a client device, use `http://10.42.0.1:8000/` directly.
@@ -45,7 +45,7 @@ Pi hotspot (10.42.0.1)
 
 ### Why FastAPI over Flask / Dash
 
-- Native `async/await` — HX711 blocking reads run in a thread executor without blocking the server
+- Native `async/await` -- HX711 blocking reads run in a thread executor without blocking the server
 - First-class SSE support via `sse-starlette`
 - Auto-generated OpenAPI docs at `/docs`
 - Significantly lighter than Dash (no Plotly, no React, no Werkzeug)
@@ -64,15 +64,15 @@ SSE is one-directional (Pi → browser), which matches this use case exactly. Be
 ```
 AnkleFlex/
 ├── Src/
-│   ├── main.py                   # Entry point — wires hardware/emulation + starts server
+│   ├── main.py                   # Entry point -- wires hardware/emulation + starts server
 │   ├── led.py                    # LED control (hardware GPIO + emulation no-op stubs)
 │   ├── hardware/
 │   │   ├── loadcell.py           # LoadCell class; accepts injected hx711= for emulation
 │   │   └── button.py             # Physical button: long press → tare, quick → reboot
 │   ├── emulation/
-│   │   └── hx711.py              # EmulatedHX711 — mocks only _read() and reset()
+│   │   └── hx711.py              # EmulatedHX711 -- mocks only _read() and reset()
 │   └── server/
-│       ├── app.py                # FastAPI app — SSE, tare, status, emulation endpoints
+│       ├── app.py                # FastAPI app -- SSE, tare, status, emulation endpoints
 │       └── static/
 │           ├── index.html        # Single-page UI
 │           ├── style.css
@@ -80,9 +80,12 @@ AnkleFlex/
 │           └── vendor/
 │               └── chart.min.js # Vendored Chart.js 4.4.3 (no CDN)
 ├── docs/
-│   ├── REQUIREMENTS.md
-│   ├── ARCHITECTURE.md           # This file
-│   └── CONTRIBUTING.md
+│   ├── dev/
+│   │   ├── ARCHITECTURE.md       # This file
+│   │   ├── CONTRIBUTING.md
+│   │   └── REQUIREMENTS.md
+│   ├── hardware/                 # Wiring table, BOM
+│   └── user/                    # End-user manual
 ├── Doc/                          # Hardware wiring diagrams (unchanged)
 ├── pyproject.toml
 ├── setup.sh                      # Pi deployment script (uv-based)
@@ -97,7 +100,7 @@ AnkleFlex/
 |---|---|---|
 | `GET` | `/` | Serves `index.html` |
 | `GET` | `/static/*` | Serves static assets (CSS, JS, vendor) |
-| `GET` | `/stream` | SSE endpoint — pushes state JSON at 2 Hz |
+| `GET` | `/stream` | SSE endpoint -- pushes state JSON at 2 Hz |
 | `POST` | `/tare` | Recalibrates zero offset; resets session min/max |
 | `GET` | `/status` | Returns current state as JSON (one-shot, no streaming) |
 | `POST` | `/emulation/weight` | Sets simulated weight (emulation only; 403 otherwise) |
@@ -127,7 +130,7 @@ Pushed at 2 Hz. `min_weight` may be negative (pull force). `emulation` controls 
 
 ### Design principle: emulate at the lowest layer
 
-Emulation replaces only the component that requires physical hardware — the HX711 ADC read. All application logic (offset arithmetic, tare, calibration, sensor loop) runs from the real `LoadCell` class unchanged. This guarantees that emulation exercises the same code paths as hardware.
+Emulation replaces only the component that requires physical hardware -- the HX711 ADC read. All application logic (offset arithmetic, tare, calibration, sensor loop) runs from the real `LoadCell` class unchanged. This guarantees that emulation exercises the same code paths as hardware.
 
 ### How it works
 
@@ -150,7 +153,7 @@ LoadCell                               LoadCell
 
 ### Tare behaviour
 
-**Tare sets the current load as the new zero reference.** The slider/physical reading is not altered — only the internal offset that `get_weight()` subtracts.
+**Tare sets the current load as the new zero reference.** The slider/physical reading is not altered -- only the internal offset that `get_weight()` subtracts.
 
 | Step | Slider (kg) | internal offset | `get_weight()` |
 |---|---|---|---|
