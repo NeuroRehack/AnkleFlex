@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="ocean">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,21 +7,34 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body data-view="bar">
+
   <header>
     <h1>AnkleFlex</h1>
-    <div id="status-indicator">
-      <span id="status-dot" class="dot disconnected"></span>
-      <span id="status-label">Connecting…</span>
+    <div class="header-right">
+      <!-- ── Theme swatches ───────────────────────────────────────────── -->
+      <div id="theme-switcher" title="Switch colour theme">
+        <button class="swatch active" data-theme="ocean"    aria-label="Ocean theme"></button>
+        <button class="swatch"        data-theme="midnight" aria-label="Midnight theme"></button>
+        <button class="swatch"        data-theme="clinical" aria-label="Clinical theme"></button>
+        <button class="swatch"        data-theme="teal"     aria-label="Teal theme"></button>
+      </div>
+      <!-- ── Connection status ──────────────────────────────────────── -->
+      <div id="status-indicator">
+        <span id="status-dot" class="dot disconnected"></span>
+        <span id="status-label">Connecting…</span>
+      </div>
     </div>
   </header>
 
   <nav id="nav-bar">
-    <a href="#bar"      class="nav-item" id="nav-bar-view">Bar</a>
-    <a href="#graph"    class="nav-item" id="nav-graph-view">Graph</a>
+    <a href="#bar"   class="nav-item" id="nav-bar-view">Bar</a>
+    <a href="#graph" class="nav-item" id="nav-graph-view">Graph</a>
   </nav>
 
   <main>
     <div id="toolbar">
+
+      <!-- ── Shared controls (always visible) ─────────────────────── -->
       <div id="shared-controls">
         <button id="tare-btn" onclick="tare()">Tare / Reset</button>
         <span id="tare-feedback"></span>
@@ -30,32 +43,47 @@
           Flip axis
         </label>
       </div>
+
+      <!-- ── Graph-only controls ────────────────────────────────────── -->
       <div id="graph-controls">
-        <label class="threshold-toggle">
-          <input type="checkbox" id="show-thresholds" checked onchange="toggleShowThresholds(this.checked)">
-          Show thresholds
-        </label>
-        <label class="threshold-row">
-          Upper threshold
-          <input type="number" id="upper-threshold" step="1" value="30" oninput="setThresholdUp(this.value)">
-        </label>
-        <label class="threshold-row">
-          Lower threshold
-          <input type="number" id="lower-threshold" step="1" value="-30" oninput="setThresholdDown(this.value)">
-        </label>
-        <span class="scale-row-label">Y Range ±</span>
-        <button class="stepper-btn" onclick="stepGraphYRange(-10)">&#8722;</button>
-        <input type="range" id="yrange-slider" min="10" max="90" step="1" value="45" oninput="setGraphYRange(this.value)">
-        <span id="yrange-value">45</span>
-        <button class="stepper-btn" onclick="stepGraphYRange(10)">&#43;</button>
-        <br>
-        <span class="scale-row-label">Sample Window (X axis)</span>
-        <button class="stepper-btn" onclick="stepGraphXRange(-10)">&#8722;</button>
-        <input type="range" id="xrange-slider" min="1" max="1200" step="1" value="10" oninput="setGraphXRange(this.value)">
-        <span id="xrange-value">0:10</span>
-        <button class="stepper-btn" onclick="stepGraphXRange(10)">&#43;</button>
-      </div>
-    </div>
+
+        <!-- Row 1: Thresholds -->
+        <div class="ctrl-row">
+          <label class="threshold-toggle">
+            <input type="checkbox" id="show-thresholds" checked onchange="toggleShowThresholds(this.checked)">
+            Show thresholds
+          </label>
+          <label class="threshold-row">
+            Upper
+            <input type="number" id="upper-threshold" step="1" value="30" oninput="setThresholdUp(this.value)">
+          </label>
+          <label class="threshold-row">
+            Lower
+            <input type="number" id="lower-threshold" step="1" value="-30" oninput="setThresholdDown(this.value)">
+          </label>
+        </div>
+
+        <!-- Row 2: Y Range + X Window side by side -->
+        <div class="ctrl-row">
+          <div class="stepper-group">
+            <span class="scale-row-label">Y Range ±</span>
+            <button class="stepper-btn" onclick="stepGraphYRange(-10)">&#8722;</button>
+            <input type="range" id="yrange-slider" min="10" max="90" step="1" value="45" oninput="setGraphYRange(this.value)">
+            <span id="yrange-value">45</span>
+            <button class="stepper-btn" onclick="stepGraphYRange(10)">&#43;</button>
+          </div>
+          <div class="ctrl-divider"></div>
+          <div class="stepper-group">
+            <span class="scale-row-label">X Window</span>
+            <button class="stepper-btn" onclick="stepGraphXRange(-10)">&#8722;</button>
+            <input type="range" id="xrange-slider" min="1" max="1200" step="1" value="10" oninput="setGraphXRange(this.value)">
+            <span id="xrange-value">0:10</span>
+            <button class="stepper-btn" onclick="stepGraphXRange(10)">&#43;</button>
+          </div>
+        </div>
+
+      </div><!-- #graph-controls -->
+    </div><!-- #toolbar -->
 
     <!-- ── Bar View ─────────────────────────────────────────────────── -->
     <section id="view-bar">
@@ -68,7 +96,7 @@
       </div>
     </section>
 
-    <!-- ── Graph View ─────────────────────────────────────────────────── -->
+    <!-- ── Graph View ────────────────────────────────────────────────── -->
     <section id="view-graph">
       <div id="graph-chart-container">
         <canvas id="graphChart"></canvas>
@@ -96,10 +124,9 @@
           <span class="counter-label">Full Upward Sequence</span>
         </div>
       </div>
-
     </section>
 
-    <!-- ── Emulation banner (shown in both views when emulation active) -->
+    <!-- ── Emulation banner ──────────────────────────────────────────── -->
     <div id="emulation-panel">
       <div id="emulation-summary" onclick="toggleEmulationExpand()">
         <span>⚠ Emulation mode &mdash; simulated weight: <strong id="slider-value">0.0</strong> kg</span>
@@ -114,9 +141,11 @@
         >
       </div>
     </div>
+
   </main>
 
   <script src="/static/vendor/chart.min.js"></script>
   <script src="/static/app.js"></script>
+  <script src="/static/theme.js"></script>
 </body>
 </html>
