@@ -23,7 +23,9 @@ from sse_starlette.sse import EventSourceResponse
 logger = logging.getLogger("ankleflex.server.app")
 
 # ── Constants ────────────────────────────────────────────────────────────────
-HISTORY_LENGTH = 400
+_SENSOR_HZ = 20  # target sensor poll rate
+_MAX_XRANGE_SEC = 20 * 60  # 20 min window
+HISTORY_LENGTH = _SENSOR_HZ * _MAX_XRANGE_SEC  # enough buffer for UI slider (24,000 for 20min at 20Hz)
 THRESHOLD_UP = 500
 THRESHOLD_DOWN = -500
 
@@ -79,7 +81,6 @@ def do_tare() -> None:
 
 # ── Background sensor reader ──────────────────────────────────────────────────
 
-_SENSOR_HZ = 20  # target sensor poll rate
 _SENSOR_INTERVAL = 1 / _SENSOR_HZ
 
 
@@ -98,8 +99,13 @@ async def _sensor_loop() -> None:
                     _state["max_weight"] = w
                 if w < _state["min_weight"]:
                     _state["min_weight"] = w
-                # Rolling history buffer
-                _state["history"].append({"t": datetime.now().strftime("%H:%M:%S"), "w": w})
+                # Rolling history buffer (include ms-since-epoch timestamp for robust frontend filtering)
+                now = datetime.now()
+                _state["history"].append({
+                    "t": now.strftime("%H:%M:%S"),
+                    "ts": int(now.timestamp() * 1000),  # ms since epoch
+                    "w": w
+                })
                 if len(_state["history"]) > HISTORY_LENGTH:
                     _state["history"] = _state["history"][-HISTORY_LENGTH:]
 

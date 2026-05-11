@@ -17,7 +17,7 @@ let chart = null;
 let graphChart = null;
 let graphYRange = 45;
 let thresholdUp = THRESHOLD_UP;
-let graphXRange = 200; // Added X-axis range
+let graphXRangeSec = 10; // Time-based window in seconds
 let thresholdDown = THRESHOLD_DOWN;
 let showThresholds = true;
 let tareFeedbackTimer = null;
@@ -195,6 +195,7 @@ function connectStream() {
     updateEmulationPanel();
     if (document.body.dataset.view === "graph" && graphChart) {
       updateGraphChart(appState.history);
+      updateXRangeLabel();
     }
   });
 }
@@ -423,8 +424,17 @@ function calculateGraphCounters(history) {
 
 function updateGraphChart(history) {
   if (!graphChart || !history) return;
-  graphChart.data.labels              = history.map(s => s.t);
-  graphChart.data.datasets[0].data    = history.map(s => displayValue(s.w));
+  // Only display samples within the most recent graphXRangeSec seconds
+  let trimmed = history;
+  if (history.length && history[history.length-1].ts) {
+    const latestTs = history[history.length-1].ts;
+    const windowMs = graphXRangeSec * 1000;
+    let start = history.findIndex(s => s.ts && (latestTs - s.ts) <= windowMs);
+    if (start === -1) start = 0;
+    trimmed = history.slice(start);
+  }
+  graphChart.data.labels              = trimmed.map(s => s.t);
+  graphChart.data.datasets[0].data    = trimmed.map(s => displayValue(s.w));
   graphChart.options.scales.y.min     = -graphYRange;
   graphChart.options.scales.y.max     =  graphYRange;
   graphChart.update("none");
@@ -438,6 +448,30 @@ function updateAllCounters() {
   document.getElementById("upper-up-count").textContent = appState.upper_up ?? 0;
   document.getElementById("upper-down-count").textContent = appState.upper_down ?? 0;
   document.getElementById("sequence-count").textContent = appState.sequence_count ?? 0;
+}
+
+// ── X-Range stepper (Graph View) ──────────────────────────────────────────
+function stepGraphXRange(delta) {
+  setGraphXRange(graphXRange + delta);
+}
+
+// ── X-Range setter (Graph View) ──────────────────────────────────────────
+function setGraphXRange(value) {
+  graphXRangeSec = Math.min(1200, Math.max(1, parseInt(value, 10)));
+  updateXRangeLabel();
+  document.getElementById('xrange-slider').value = graphXRangeSec;
+  updateGraphChart(appState.history);
+}
+
+function stepGraphXRange(delta) {
+  setGraphXRange(graphXRangeSec + delta);
+}
+
+function updateXRangeLabel() {
+  // Always show the selected window (even if not enough data)
+  const min = Math.floor(graphXRangeSec/60);
+  const sec = graphXRangeSec%60;
+  document.getElementById('xrange-value').textContent = `${min}:${sec.toString().padStart(2, '0')}`;
 }
 
 // ── Y-Range stepper (Graph View) ──────────────────────────────────────────
@@ -462,6 +496,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
   } catch {}
+  // Initialize X-range UI elements
+  document.getElementById('xrange-slider').value = graphXRangeSec;
+  updateXRangeLabel();
   initChart();
   showView(window.location.hash || "#bar");
   window.addEventListener("hashchange", () => showView(window.location.hash));
