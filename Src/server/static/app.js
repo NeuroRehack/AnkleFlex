@@ -443,10 +443,6 @@ function updateGraphChart(history) {
 }
 
 function updateAllCounters() {
-  document.getElementById("lower-up-count").textContent = appState.lower_up ?? 0;
-  document.getElementById("lower-down-count").textContent = appState.lower_down ?? 0;
-  document.getElementById("upper-up-count").textContent = appState.upper_up ?? 0;
-  document.getElementById("upper-down-count").textContent = appState.upper_down ?? 0;
   document.getElementById("sequence-count").textContent = appState.sequence_count ?? 0;
 }
 

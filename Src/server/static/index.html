@@ -66,7 +66,7 @@
         <!-- Row 2: Y Range + X Window side by side -->
         <div class="ctrl-row">
           <div class="stepper-group">
-            <span class="scale-row-label">Y Range ±</span>
+            <span class="scale-row-label">Vertical Range</span>
             <button class="stepper-btn" onclick="stepGraphYRange(-10)">&#8722;</button>
             <input type="range" id="yrange-slider" min="10" max="90" step="1" value="45" oninput="setGraphYRange(this.value)">
             <span id="yrange-value">45</span>
@@ -74,7 +74,7 @@
           </div>
           <div class="ctrl-divider"></div>
           <div class="stepper-group">
-            <span class="scale-row-label">X Window</span>
+            <span class="scale-row-label">Time Window</span>
             <button class="stepper-btn" onclick="stepGraphXRange(-10)">&#8722;</button>
             <input type="range" id="xrange-slider" min="1" max="1200" step="1" value="10" oninput="setGraphXRange(this.value)">
             <span id="xrange-value">0:10</span>
@@ -103,22 +103,6 @@
       </div>
 
       <div id="threshold-counters">
-        <div class="counter-badge">
-          <span class="counter-value" id="lower-up-count">0</span>
-          <span class="counter-label">Lower Up (↓ → ↑)</span>
-        </div>
-        <div class="counter-badge">
-          <span class="counter-value" id="lower-down-count">0</span>
-          <span class="counter-label">Lower Down (↑ → ↓)</span>
-        </div>
-        <div class="counter-badge">
-          <span class="counter-value" id="upper-up-count">0</span>
-          <span class="counter-label">Upper Up (↓ → ↑)</span>
-        </div>
-        <div class="counter-badge">
-          <span class="counter-value" id="upper-down-count">0</span>
-          <span class="counter-label">Upper Down (↑ → ↓)</span>
-        </div>
         <div class="counter-badge sequence">
           <span class="counter-value" id="sequence-count">0</span>
           <span class="counter-label">Full Upward Sequence</span>
