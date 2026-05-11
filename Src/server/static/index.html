@@ -64,23 +64,8 @@
         </div>
 
         <!-- Row 2: Y Range + X Window side by side -->
-        <div class="ctrl-row">
-          <div class="stepper-group">
-            <span class="scale-row-label">Vertical Range</span>
-            <button class="stepper-btn" onclick="stepGraphYRange(-10)">&#8722;</button>
-            <input type="range" id="yrange-slider" min="10" max="90" step="1" value="45" oninput="setGraphYRange(this.value)">
-            <span id="yrange-value">45</span>
-            <button class="stepper-btn" onclick="stepGraphYRange(10)">&#43;</button>
-          </div>
-          <div class="ctrl-divider"></div>
-          <div class="stepper-group">
-            <span class="scale-row-label">Time Window</span>
-            <button class="stepper-btn" onclick="stepGraphXRange(-10)">&#8722;</button>
-            <input type="range" id="xrange-slider" min="1" max="1200" step="1" value="10" oninput="setGraphXRange(this.value)">
-            <span id="xrange-value">0:10</span>
-            <button class="stepper-btn" onclick="stepGraphXRange(10)">&#43;</button>
-          </div>
-        </div>
+        <!-- No more horizontal ctrl-row for range -->
+
 
       </div><!-- #graph-controls -->
     </div><!-- #toolbar -->
@@ -98,8 +83,19 @@
 
     <!-- ── Graph View ────────────────────────────────────────────────── -->
     <section id="view-graph">
-      <div id="graph-chart-container">
-        <canvas id="graphChart"></canvas>
+      <div id="graph-flex">
+        <div id="yrange-slider-container">
+          <div class="stepper-group vertical">
+            <span class="scale-row-label">Vertical Range</span>
+            <button class="stepper-btn" onclick="stepGraphYRange(10)">&#43;</button>
+            <input type="range" id="yrange-slider" min="10" max="90" step="1" value="45" oninput="setGraphYRange(this.value)">
+            <span id="yrange-value">45</span>
+            <button class="stepper-btn" onclick="stepGraphYRange(-10)">&#8722;</button>
+          </div>
+        </div>
+        <div id="graph-chart-container">
+          <canvas id="graphChart"></canvas>
+        </div>
       </div>
 
       <!-- ── Minimap (range brush / overview+detail) ──────────────────── -->

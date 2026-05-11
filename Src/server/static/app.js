@@ -490,7 +490,6 @@ function setGraphXRange(value) {
     graphXPinnedEndTs = window.graphXPinnedEndTs ?? null;
   }
   updateXRangeLabel();
-  document.getElementById('xrange-slider').value = Math.round(graphXRangeSec);
   updateGraphChart(appState.history);
 }
 
@@ -507,13 +506,7 @@ function setPinnedEndTs(tsOrNull) {
 }
 
 function updateXRangeLabel() {
-  // Always show the selected window (even if not enough data).
-  // Round to the nearest whole second for display; graphXRangeSec may be
-  // fractional when set by the minimap brush.
-  const totalSec = Math.round(graphXRangeSec);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  document.getElementById('xrange-value').textContent = `${min}:${sec.toString().padStart(2, '0')}`;
+  // No-op: X window label and slider removed
 }
 
 // ── Y-Range stepper (Graph View) ──────────────────────────────────────────
@@ -539,7 +532,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   } catch {}
   // Initialize X-range UI elements
-  document.getElementById('xrange-slider').value = graphXRangeSec;
   updateXRangeLabel();
   initChart();
   showView(window.location.hash || "#bar");

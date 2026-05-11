@@ -351,6 +351,29 @@ body[data-view="graph"] #graph-controls {
   align-items: center;
   gap: 7px;
 }
+.stepper-group.vertical {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 3px 8px 3px;
+  min-width: 40px;
+  gap: 0.4em;
+}
+
+.stepper-group.vertical .scale-row-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
+.stepper-group.vertical .stepper-btn {
+  margin: 4px 0;
+}
+
+.stepper-group.vertical #yrange-value {
+  margin: 4px 0;
+}
 
 /* ── Tare button ─────────────────────────────────────────────────────────── */
 #tare-btn {
@@ -459,14 +482,24 @@ input[type="range"] {
   cursor: pointer;
 }
 
-#yrange-value,
-#xrange-value {
-  min-width: 38px;
+#yrange-slider {
+  /* modern cross-browser vertical slider */
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 32px;
+  height: 140px;
+  margin: 8px 0;
+  padding: 0;
+}
+
+#yrange-value {
+  min-width: 30px;
   text-align: center;
   font-family: var(--font-num);
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--text);
+  margin: 4px 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -518,6 +551,22 @@ input[type="range"] {
 /* ══════════════════════════════════════════════════════════════════════════
    GRAPH VIEW
    ══════════════════════════════════════════════════════════════════════════ */
+#graph-flex {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+}
+
+#yrange-slider-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  min-width: 50px;
+}
+
 #graph-chart-container {
   flex: 1;
   background: var(--surface);
