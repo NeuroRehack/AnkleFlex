@@ -102,6 +102,14 @@
         <canvas id="graphChart"></canvas>
       </div>
 
+      <!-- ── Minimap (range brush / overview+detail) ──────────────────── -->
+      <div id="minimap-container">
+        <canvas id="minimapCanvas"></canvas>
+        <button id="minimap-live-btn" hidden aria-label="Return to live view">
+          &#9660; Back to live
+        </button>
+      </div>
+
       <div id="threshold-counters">
         <div class="counter-badge sequence">
           <span class="counter-value" id="sequence-count">0</span>
@@ -131,6 +139,7 @@
   <script src="/static/vendor/chart.min.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/drag-threshold.js"></script>
+  <script src="/static/minimap.js"></script>
   <script src="/static/theme.js"></script>
 </body>
 </html>

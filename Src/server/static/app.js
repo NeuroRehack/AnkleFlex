@@ -8,6 +8,8 @@
 // ── Constants (must match app.py) ─────────────────────────────────────────
 const THRESHOLD_UP   = 30;
 const THRESHOLD_DOWN = -30;
+const MIN_WINDOW_SEC = 1;
+const MAX_WINDOW_SEC = 1200;
 
 // ── State ────────────────────────────────────────────────────────────────
 let appState = { weight: 0, min_weight: 0, max_weight: 0, emulation: false, history: [], above_count: 0, below_count: 0 };
@@ -17,7 +19,8 @@ let chart = null;
 let graphChart = null;
 let graphYRange = 45;
 let thresholdUp = THRESHOLD_UP;
-let graphXRangeSec = 10; // Time-based window in seconds
+let graphXRangeSec  = 10;  // visible window width in seconds
+let graphXPinnedEndTs = null; // null = live (follows tail); absolute ms timestamp = pinned to that moment
 let thresholdDown = THRESHOLD_DOWN;
 let showThresholds = true;
 let tareFeedbackTimer = null;
@@ -187,6 +190,9 @@ function connectStream() {
   es.addEventListener("message", (event) => {
     try {
       appState = JSON.parse(event.data);
+      // Keep the window bridge current so minimap.js and drag-threshold.js
+      // always see the latest state without holding a stale reference.
+      window.appState = appState;
     } catch {
       return;
     }
@@ -404,13 +410,19 @@ function initGraphChart() {
     },
     plugins: [graphThresholdPlugin],
   });
-  // Export to allow drag plugin to work
-  window.graphChart = graphChart;
-  window.displayValue = displayValue;
-  window.updateGraphChart = updateGraphChart;
-  window.appState = appState;
-  window.thresholdUp = thresholdUp;
-  window.thresholdDown = thresholdDown;
+  // Window bridge — exposes state and functions to the IIFE modules
+  // (drag-threshold.js, minimap.js) without polluting global scope beyond
+  // what is intentionally published here.
+  window.graphChart        = graphChart;
+  window.displayValue      = displayValue;
+  window.updateGraphChart  = updateGraphChart;
+  window.setGraphXRange      = setGraphXRange;
+  window.setPinnedEndTs      = setPinnedEndTs;
+  window.appState            = appState;
+  window.graphXRangeSec      = graphXRangeSec;
+  window.graphXPinnedEndTs   = graphXPinnedEndTs;
+  window.thresholdUp         = thresholdUp;
+  window.thresholdDown       = thresholdDown;
 }
 
 function calculateGraphCounters(history) {
@@ -435,49 +447,72 @@ function calculateGraphCounters(history) {
 
 function updateGraphChart(history) {
   if (!graphChart || !history) return;
-  // Only display samples within the most recent graphXRangeSec seconds
+
   let trimmed = history;
-  if (history.length && history[history.length-1].ts) {
-    const latestTs = history[history.length-1].ts;
+  if (history.length && history[history.length - 1].ts) {
+    const latestTs = history[history.length - 1].ts;
     const windowMs = graphXRangeSec * 1000;
-    let start = history.findIndex(s => s.ts && (latestTs - s.ts) <= windowMs);
-    if (start === -1) start = 0;
-    trimmed = history.slice(start);
+    // In live mode (null) always show the newest window. When pinned to an
+    // absolute timestamp the slice is frozen; new samples arriving past the
+    // right edge do not scroll the view.
+    const endTs    = graphXPinnedEndTs !== null ? graphXPinnedEndTs : latestTs;
+    const startTs  = endTs - windowMs;
+    trimmed = history.filter(s => s.ts >= startTs && s.ts <= endTs);
   }
-  graphChart.data.labels              = trimmed.map(s => s.t);
-  graphChart.data.datasets[0].data    = trimmed.map(s => displayValue(s.w));
-  graphChart.options.scales.y.min     = -graphYRange;
-  graphChart.options.scales.y.max     =  graphYRange;
+
+  graphChart.data.labels           = trimmed.map(s => s.t);
+  graphChart.data.datasets[0].data = trimmed.map(s => displayValue(s.w));
+  graphChart.options.scales.y.min  = -graphYRange;
+  graphChart.options.scales.y.max  =  graphYRange;
   graphChart.update("none");
 
   updateAllCounters();
+
+  // Repaint the minimap whenever the main chart refreshes so both stay in sync.
+  if (typeof window.minimapDraw === 'function') window.minimapDraw();
 }
 
 function updateAllCounters() {
   document.getElementById("sequence-count").textContent = appState.sequence_count ?? 0;
 }
 
-// ── X-Range stepper (Graph View) ──────────────────────────────────────────
-function stepGraphXRange(delta) {
-  setGraphXRange(graphXRange + delta);
-}
-
 // ── X-Range setter (Graph View) ──────────────────────────────────────────
 function setGraphXRange(value) {
-  graphXRangeSec = Math.min(1200, Math.max(1, parseInt(value, 10)));
+  // Accept fractional seconds from the minimap brush so sub-second precision
+  // is preserved during dragging. The toolbar slider and label round to whole
+  // seconds for display, but the internal value stays fractional.
+  graphXRangeSec = Math.min(MAX_WINDOW_SEC, Math.max(MIN_WINDOW_SEC, parseFloat(value)));
+  window.graphXRangeSec = graphXRangeSec;
+  // Sync pinnedEndTs if minimap wrote it directly before calling this function
+  // (resize handlers write window.graphXPinnedEndTs then call setGraphXRange
+  // to avoid a double redraw).
+  if (window.graphXPinnedEndTs !== graphXPinnedEndTs) {
+    graphXPinnedEndTs = window.graphXPinnedEndTs ?? null;
+  }
   updateXRangeLabel();
-  document.getElementById('xrange-slider').value = graphXRangeSec;
+  document.getElementById('xrange-slider').value = Math.round(graphXRangeSec);
   updateGraphChart(appState.history);
 }
 
+// ── X-Range stepper (Graph View) ──────────────────────────────────────────
 function stepGraphXRange(delta) {
   setGraphXRange(graphXRangeSec + delta);
 }
 
+// ── Pinned-end-timestamp setter — called by minimap.js for pan gestures ──
+function setPinnedEndTs(tsOrNull) {
+  graphXPinnedEndTs        = tsOrNull;
+  window.graphXPinnedEndTs = tsOrNull;
+  updateGraphChart(appState.history);
+}
+
 function updateXRangeLabel() {
-  // Always show the selected window (even if not enough data)
-  const min = Math.floor(graphXRangeSec/60);
-  const sec = graphXRangeSec%60;
+  // Always show the selected window (even if not enough data).
+  // Round to the nearest whole second for display; graphXRangeSec may be
+  // fractional when set by the minimap brush.
+  const totalSec = Math.round(graphXRangeSec);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
   document.getElementById('xrange-value').textContent = `${min}:${sec.toString().padStart(2, '0')}`;
 }
 
