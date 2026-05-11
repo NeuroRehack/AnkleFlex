@@ -1,4 +1,4 @@
-# README: Raspberry Pi Load Cell Project
+﻿# README: Raspberry Pi Load Cell Project
 
 ## Project Overview
 This project's inital idea came from physiotherapists who wanted a way to visualise and measure the force exrted during ankle flexion and extension.
@@ -147,35 +147,28 @@ For portable, reproducible Python dependency management, we recommend using [uv]
       .venv\Scripts\Activate.ps1
       ```
 
-4. **Run the emulator in emulation mode:**
+4. **Run the app:**
     ```sh
     uv pip install -e .      # If new code or dependencies added
-    set ANKLEFLEX_EMULATE_LOADCELL=1  # (use 'export' on Unix/Mac)
     python Src/main.py
     ```
+    Emulation is automatic — on any machine without Raspberry Pi hardware
+    libraries installed, the app detects this and starts in emulation mode.
 
 All code, dependencies, and emulation logic are managed using pyproject.toml and uv for reproducibility and speed. No Raspberry Pi required for development/testing in emulation mode!
 
 
-You can run and test AnkleFlex on any computer without a load cell or Raspberry Pi hardware by enabling emulation mode. This uses a software emulation layer for the load cell.
+You can run and test AnkleFlex on any computer without a load cell or Raspberry Pi hardware.
+Emulation is automatic — on any machine where the Raspberry Pi hardware libraries
+(`RPi.GPIO`, `hx711`) are not installed, the app detects this at startup and runs a
+software load cell instead. No environment variable or configuration change is needed.
 
-**To enable emulation mode:**
-
-1. Set the environment variable before running the app:
-   - On Linux/macOS:
-     ```sh
-     export ANKLEFLEX_EMULATE_LOADCELL=1
-     python Src/main.py
-     ```
-   - On Windows (cmd):
-     ```cmd
-     set ANKLEFLEX_EMULATE_LOADCELL=1
-     python Src/main.py
-     ```
-
-2. In emulation mode, the app will use a software load cell. You can extend this to provide a UI slider or scripted values for testing.
+Simply run:
+```sh
+python Src/main.py
+```
 
 **Note:**
 - No changes to hardware code are required.
 - All emulation code is fully separated in `Src/emulation/`.
-- To use real hardware, unset the environment variable or set it to 0.
+- On a Raspberry Pi with hardware connected, real hardware mode is used automatically.

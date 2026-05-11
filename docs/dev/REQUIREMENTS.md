@@ -52,7 +52,7 @@ There is **no physical screen** on the Pi -- all interaction is through a browse
 ### FR-04 · Emulation mode *(development use only)*
 
 - The full application **must** run on a Windows development machine with no hardware
-- Emulation is activated by setting `ANKLEFLEX_EMULATE_LOADCELL=1`
+- Emulation is activated automatically when Raspberry Pi hardware libraries are not detected
 - In emulation mode, the web UI **must** include a slider (range −100 to +100 kg) to manually set the simulated weight value
 - The emulation slider **must not** appear in hardware (production) mode
 - All other behaviour **must** be identical to hardware mode, including tare semantics

@@ -12,8 +12,7 @@ git clone https://github.com/NeuroRehack/AnkleFlex
 cd AnkleFlex
 uv sync
 
-# Run in emulation mode
-$env:ANKLEFLEX_EMULATE_LOADCELL="1"
+# Run — emulation is automatic when hardware libraries are not present
 .\.venv\Scripts\python.exe Src/main.py
 # → open http://localhost:8000/
 ```
@@ -31,7 +30,7 @@ python Src/main.py
 
 ### Stage 1 · Development on Windows (no hardware) -- ✅ complete
 
-- Set `ANKLEFLEX_EMULATE_LOADCELL=1` and run `python Src/main.py`
+- Run `python Src/main.py` — emulation is automatic on Windows (hardware libraries not present)
 - Use the emulation slider (−100 to +100 kg) in the web UI to test weight changes
 - Verify: SSE stream connects, chart updates, tare button recalibrates zero, min/max lines track
 - Verify: moving slider to negative values shows bar below zero; MIN line appears
@@ -40,14 +39,13 @@ python Src/main.py
 ### Stage 2 · Raspberry Pi without load cell hardware -- ⬜ pending
 
 - SSH into Pi, clone repo, run `uv sync`
-- Set `ANKLEFLEX_EMULATE_LOADCELL=1`, start the app
+- Start the app — if no load cell is wired, emulation is detected automatically
 - Connect via browser on the hotspot (`http://ankleflex.local:8000/` or `http://10.42.0.1:8000/`)
 - Verify: SSE stream reaches remote browser, chart works, tare button works
 - Verify: auto-start after `sudo reboot`
 
 ### Stage 3 · Raspberry Pi with full hardware -- ⬜ pending (requires physical device)
 
-- Unset `ANKLEFLEX_EMULATE_LOADCELL`
 - Verify: load cell reads, LED status indicator, physical button tare, physical button reboot
 - Verify: emulation panel does **not** appear in the UI
 
