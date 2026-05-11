@@ -13,6 +13,23 @@ const MAX_WINDOW_SEC = 1200;
 
 // ── State ────────────────────────────────────────────────────────────────
 let appState = { weight: 0, min_weight: 0, max_weight: 0, emulation: false, history: [], above_count: 0, below_count: 0 };
+let lastSequenceCount = 0;
+const repAudio = document.getElementById("timer-audio-rep");
+let audioPrimed = false;
+if (repAudio) {
+  // Listen for any user interaction to "unlock" audio
+  const prime = () => {
+    repAudio.play().then(() => {
+      repAudio.pause();
+      repAudio.currentTime = 0;
+      audioPrimed = true;
+      window.removeEventListener('pointerdown', prime);
+      window.removeEventListener('keydown', prime);
+    }).catch(()=>{}); // Ignore errors
+  };
+  window.addEventListener('pointerdown', prime, { once: true });
+  window.addEventListener('keydown', prime, { once: true });
+}
 let axisFlipped = false;
 let scale = 1.0;
 let chart = null;
@@ -190,6 +207,17 @@ function connectStream() {
   es.addEventListener("message", (event) => {
     try {
       appState = JSON.parse(event.data);
+      // Audio indication on rep count increment
+      if (
+        typeof appState.sequence_count === "number" &&
+        appState.sequence_count > lastSequenceCount
+      ) {
+        if (repAudio) {
+          repAudio.currentTime = 0;
+          repAudio.play();
+        }
+      }
+      lastSequenceCount = appState.sequence_count || 0;
       // Keep the window bridge current so minimap.js and drag-threshold.js
       // always see the latest state without holding a stale reference.
       window.appState = appState;
