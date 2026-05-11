@@ -277,9 +277,11 @@ function setThresholdUp(value) {
     up = thresholdDown;
   }
   thresholdUp = up;
+  window.thresholdUp = up;
   document.getElementById("upper-threshold").value = thresholdUp;
   if (thresholdDown > thresholdUp) {
     thresholdDown = thresholdUp;
+    window.thresholdDown = thresholdUp;
     document.getElementById("lower-threshold").value = thresholdDown;
   }
   // Send to backend
@@ -298,9 +300,11 @@ function setThresholdDown(value) {
     down = thresholdUp;
   }
   thresholdDown = down;
+  window.thresholdDown = down;
   document.getElementById("lower-threshold").value = thresholdDown;
   if (thresholdUp < thresholdDown) {
     thresholdUp = thresholdDown;
+    window.thresholdUp = thresholdDown;
     document.getElementById("upper-threshold").value = thresholdUp;
   }
   // Send to backend
@@ -400,6 +404,13 @@ function initGraphChart() {
     },
     plugins: [graphThresholdPlugin],
   });
+  // Export to allow drag plugin to work
+  window.graphChart = graphChart;
+  window.displayValue = displayValue;
+  window.updateGraphChart = updateGraphChart;
+  window.appState = appState;
+  window.thresholdUp = thresholdUp;
+  window.thresholdDown = thresholdDown;
 }
 
 function calculateGraphCounters(history) {
