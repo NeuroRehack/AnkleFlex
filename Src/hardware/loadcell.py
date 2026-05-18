@@ -72,17 +72,40 @@ class LoadCell:
         self.ready: bool = False
 
     def initialize(self) -> None:
-        """Reset and calibrate the HX711. Raises RuntimeError on timeout."""
+        """Reset and calibrate the HX711.
+
+        If the chip does not respond within 15 seconds (e.g. no hardware
+        connected), falls back to emulation mode instead of crashing.
+        """
         logger.info("Calibrating...")
         state = _run_with_timeout(self.hx711.reset, 15)
         if state == -1:
-            raise RuntimeError("[LoadCell] Timeout resetting HX711")
+            logger.warning(
+                "[LoadCell] HX711 did not respond within 15 s — "
+                "no hardware connected? Falling back to emulation."
+            )
+            self._activate_emulation()
+            return
         offset = _run_with_timeout(self.get_offset, 15)
         if offset == -1:
-            raise RuntimeError("[LoadCell] Timeout getting offset")
+            logger.warning(
+                "[LoadCell] Timeout reading initial offset — "
+                "falling back to emulation."
+            )
+            self._activate_emulation()
+            return
         self.offset = offset
         self.ready = True
         logger.info(f"Ready. Offset={self.offset:.1f}")
+
+    def _activate_emulation(self) -> None:
+        """Switch to EmulatedHX711 at runtime (called when hardware is absent)."""
+        from emulation.hx711 import EmulatedHX711
+        self.hx711 = EmulatedHX711(calibration_factor=CALIBRATION_FACTOR)
+        self._GPIO = None
+        self.emulation = True
+        self.offset = 0.0
+        self.ready = True
 
     def get_offset(self, times: int = 5) -> float:
         """Read raw HX711 values `times` times and return the average."""
