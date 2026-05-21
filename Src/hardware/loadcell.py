@@ -18,18 +18,25 @@ def _run_with_timeout(func, timeout: float):
     """Run a no-argument callable in a thread with a timeout.
 
     Returns -1 if the timeout is exceeded, otherwise the function's result.
+    Re-raises any exception thrown by func.
     """
     q: queue.Queue = queue.Queue()
 
     def wrapper():
-        q.put(func())
+        try:
+            q.put((True, func()))
+        except Exception as exc:  # noqa: BLE001
+            q.put((False, exc))
 
     t = threading.Thread(target=wrapper, daemon=True)
     t.start()
     t.join(timeout)
     if t.is_alive():
         return -1
-    return q.get()
+    ok, value = q.get()
+    if not ok:
+        raise value
+    return value
 
 
 class LoadCell:
@@ -144,5 +151,5 @@ class LoadCell:
         """Clean up GPIO resources for the load cell."""
         if hasattr(self.hx711, "power_down"):
             self.hx711.power_down()
-        if hasattr(self, "_GPIO"):
+        if self._GPIO is not None:
             self._GPIO.cleanup()

@@ -82,6 +82,30 @@ def do_tare() -> None:
 # ── Background sensor reader ──────────────────────────────────────────────────
 
 _SENSOR_INTERVAL = 1 / _SENSOR_HZ
+# Maximum time to wait for a single get_weight() call before treating the
+_SENSOR_READ_TIMEOUT = 2.0
+# How many consecutive timeouts before attempting an HX711 reset.
+_TIMEOUTS_BEFORE_RESET = 3
+
+
+async def _recover_hx711(loop: asyncio.AbstractEventLoop) -> None:
+    """Attempt to wake the HX711 from power-down by issuing a reset.
+
+    Driving SCK LOW (which reset() does during power-up) releases the chip
+    from power-down and allows DOUT to go LOW again, which unblocks any
+    thread currently stuck in hx711._read().
+    """
+    hx = getattr(_loadcell, "hx711", None)
+    if hx is None or not hasattr(hx, "reset"):
+        return
+    logger.warning("[sensor] Attempting HX711 reset to recover from power-down...")
+    try:
+        await asyncio.wait_for(loop.run_in_executor(None, hx.reset), timeout=5.0)
+        logger.info("[sensor] HX711 reset completed — resuming reads")
+    except asyncio.TimeoutError:
+        logger.error("[sensor] HX711 reset also timed out — hardware may be disconnected")
+    except Exception as exc:
+        logger.error("[sensor] HX711 reset error: %s", exc)
 
 
 async def _sensor_loop() -> None:
@@ -89,9 +113,14 @@ async def _sensor_loop() -> None:
     loop = asyncio.get_running_loop()
     prev_w = None
     lower_up_pending = False
+    consecutive_timeouts = 0
     while True:
         try:
-            raw = await loop.run_in_executor(None, _loadcell.get_weight)
+            raw = await asyncio.wait_for(
+                loop.run_in_executor(None, _loadcell.get_weight),
+                timeout=_SENSOR_READ_TIMEOUT,
+            )
+            consecutive_timeouts = 0
             if raw is not None and raw is not False and raw != -1:
                 w = float(raw)
                 _state["weight"] = w
@@ -130,6 +159,15 @@ async def _sensor_loop() -> None:
                     elif prev_w > threshold_up and w <= threshold_up:
                         _state["upper_down"] += 1
                 prev_w = w
+        except asyncio.TimeoutError:
+            consecutive_timeouts += 1
+            logger.warning(
+                "[sensor] get_weight() timed out (%d consecutive) — HX711 may be in power-down",
+                consecutive_timeouts,
+            )
+            if consecutive_timeouts >= _TIMEOUTS_BEFORE_RESET:
+                await _recover_hx711(loop)
+                consecutive_timeouts = 0
         except Exception as exc:
             logger.error(f"[sensor] read error: {exc}")
         await asyncio.sleep(_SENSOR_INTERVAL)
