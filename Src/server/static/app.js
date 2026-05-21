@@ -206,7 +206,27 @@ function connectStream() {
   es.addEventListener("error", () => setConnected(false));
   es.addEventListener("message", (event) => {
     try {
-      appState = JSON.parse(event.data);
+      const incoming = JSON.parse(event.data);
+      // Merge new state fields except history
+      Object.assign(appState, incoming);
+      // If a new weight sample is present, append to history
+      if (typeof appState.weight === "number") {
+        if (Array.isArray(appState.history)) {
+          const now = Date.now();
+          const last = appState.history.length ? appState.history[appState.history.length - 1] : null;
+          // Only append if new (avoid duplicate timestamps)
+          if (!last || Math.abs(now - last.ts) > 20) {
+            appState.history.push({
+              t: new Date(now).toLocaleTimeString().slice(0,8),
+              ts: now,
+              w: appState.weight
+            });
+            if (appState.history.length > 24000) {
+              appState.history = appState.history.slice(-24000);
+            }
+          }
+        }
+      }
       // Audio indication on rep count increment
       if (
         typeof appState.sequence_count === "number" &&
@@ -218,8 +238,6 @@ function connectStream() {
         }
       }
       lastSequenceCount = appState.sequence_count || 0;
-      // Keep the window bridge current so minimap.js and drag-threshold.js
-      // always see the latest state without holding a stale reference.
       window.appState = appState;
     } catch {
       return;
@@ -559,6 +577,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
   } catch {}
+
+  // Fetch initial history from backend
+  try {
+    const resp = await fetch("/history");
+    if (resp.ok) {
+      const data = await resp.json();
+      if (Array.isArray(data.history)) {
+        appState.history = data.history;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load initial history:", err);
+  }
+
   // Initialize X-range UI elements
   updateXRangeLabel();
   initChart();

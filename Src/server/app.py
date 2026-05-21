@@ -15,10 +15,19 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import Body, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
+
+# Input validation models
+class WeightPayload(BaseModel):
+    weight: float = 0.0
+
+class ThresholdPayload(BaseModel):
+    upper: float
+    lower: float
 
 logger = logging.getLogger("ankleflex.server.app")
 
@@ -26,8 +35,6 @@ logger = logging.getLogger("ankleflex.server.app")
 _SENSOR_HZ = 20  # target sensor poll rate
 _MAX_XRANGE_SEC = 20 * 60  # 20 min window
 HISTORY_LENGTH = _SENSOR_HZ * _MAX_XRANGE_SEC  # enough buffer for UI slider (24,000 for 20min at 20Hz)
-THRESHOLD_UP = 500
-THRESHOLD_DOWN = -500
 
 # ── Shared state (written by sensor loop, read by SSE clients) ────────────────
 _state: dict = {
@@ -77,12 +84,13 @@ def do_tare() -> None:
     _state["upper_up"] = 0
     _state["upper_down"] = 0
     _state["sequence_count"] = 0
-
+    logger.info("do_tare called")
 
 # ── Background sensor reader ──────────────────────────────────────────────────
 
 _SENSOR_INTERVAL = 1 / _SENSOR_HZ
 # Maximum time to wait for a single get_weight() call before treating the
+# HX711 as stuck and timing out.
 _SENSOR_READ_TIMEOUT = 2.0
 # How many consecutive timeouts before attempting an HX711 reset.
 _TIMEOUTS_BEFORE_RESET = 3
@@ -95,17 +103,16 @@ async def _recover_hx711(loop: asyncio.AbstractEventLoop) -> None:
     from power-down and allows DOUT to go LOW again, which unblocks any
     thread currently stuck in hx711._read().
     """
-    hx = getattr(_loadcell, "hx711", None)
-    if hx is None or not hasattr(hx, "reset"):
+    if _loadcell is None or not hasattr(_loadcell, "recover"):
         return
-    logger.warning("[sensor] Attempting HX711 reset to recover from power-down...")
+    logger.warning("[sensor] Attempting HX711 recover() to recover from power-down...")
     try:
-        await asyncio.wait_for(loop.run_in_executor(None, hx.reset), timeout=5.0)
-        logger.info("[sensor] HX711 reset completed — resuming reads")
+        await asyncio.wait_for(loop.run_in_executor(None, _loadcell.recover), timeout=5.0)
+        logger.info("[sensor] HX711 recover() completed - resuming reads")
     except asyncio.TimeoutError:
-        logger.error("[sensor] HX711 reset also timed out — hardware may be disconnected")
+        logger.error("[sensor] HX711 recover() also timed out - hardware may be disconnected")
     except Exception as exc:
-        logger.error("[sensor] HX711 reset error: %s", exc)
+        logger.error("[sensor] HX711 recover() error: %s", exc)
 
 
 async def _sensor_loop() -> None:
@@ -197,16 +204,26 @@ async def index():
     return FileResponse(_STATIC / "index.html")
 
 
+
+# New: /history endpoint for full history
+@app.get("/history", summary="Get full weight history (one-shot)")
+async def get_history():
+    """Return the full history buffer as a one-shot JSON response."""
+    return JSONResponse({"history": _state["history"]})
+
 @app.get("/stream", summary="Server-Sent Events — pushes state at 20 Hz")
 async def stream(request: Request):
-    """Stream state updates to the client at 20 Hz using SSE."""
+    """Stream state updates to the client at 20 Hz using SSE (no history)."""
 
     async def generator():
         try:
             while True:
                 if await request.is_disconnected():
                     break
-                yield {"data": json.dumps(_state)}
+                # Send all state except history
+                state_copy = dict(_state)
+                state_copy.pop("history", None)
+                yield {"data": json.dumps(state_copy)}
                 await asyncio.sleep(_SENSOR_INTERVAL)
         finally:
             pass  # cleanup on disconnect
@@ -233,24 +250,18 @@ async def status():
 
 
 @app.post("/emulation/weight", summary="Set simulated weight (emulation mode only)")
-async def set_emulated_weight(request: Request):
+async def set_emulated_weight(payload: WeightPayload):
     """Set the simulated weight value (emulation mode only)."""
     if not _emulate:
         return JSONResponse({"error": "not in emulation mode"}, status_code=403)
-    body = await request.json()
-    weight = float(body.get("weight", 0.0))
     if hasattr(_loadcell, "set_weight"):
-        _loadcell.set_weight(weight)
+        _loadcell.set_weight(payload.weight)
     return {"ok": True}
 
 
 @app.post("/thresholds", summary="Update threshold values")
-async def update_thresholds(payload: dict = Body(...)):
+async def update_thresholds(payload: ThresholdPayload):
     """Update threshold values from the UI."""
-    up = payload.get("upper")
-    down = payload.get("lower")
-    if up is not None:
-        _state["threshold_up"] = float(up)
-    if down is not None:
-        _state["threshold_down"] = float(down)
+    _state["threshold_up"] = payload.upper
+    _state["threshold_down"] = payload.lower
     return {"ok": True, "threshold_up": _state["threshold_up"], "threshold_down": _state["threshold_down"]}
