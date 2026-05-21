@@ -4,6 +4,7 @@ Only works on Raspberry Pi with the load cell hardware connected.
 """
 
 import logging
+import time
 import queue
 import threading
 
@@ -47,6 +48,17 @@ class LoadCell:
     logic — offset arithmetic, tare, calibration — runs unchanged either way.
     """
 
+    def recover(self) -> bool:
+        """Attempt to reset the HX711 (hardware or emulation). Returns True if successful."""
+        if hasattr(self.hx711, "reset"):
+            try:
+                return self.hx711.reset()
+            except Exception as exc:
+                logger.error(f"[LoadCell] HX711 recover/reset failed: {exc}")
+                return False
+        logger.warning("[LoadCell] recover() called but HX711 has no reset() method")
+        return False
+
     def __init__(self, hx711=None) -> None:
         """Initialize the LoadCell object."""
         if hx711 is not None:
@@ -85,7 +97,16 @@ class LoadCell:
         connected), falls back to emulation mode instead of crashing.
         """
         logger.info("Calibrating...")
-        state = _run_with_timeout(self.hx711.reset, 15)
+        try:
+            state = _run_with_timeout(self.hx711.reset, 15)
+        except Exception as exc:
+            logger.warning(
+                "[LoadCell] HX711 reset raised an exception — "
+                "falling back to emulation: %s",
+                exc,
+            )
+            self._activate_emulation()
+            return
         if state == -1:
             logger.warning(
                 "[LoadCell] HX711 did not respond within 15 s — "
@@ -93,7 +114,16 @@ class LoadCell:
             )
             self._activate_emulation()
             return
-        offset = _run_with_timeout(self.get_offset, 15)
+        try:
+            offset = _run_with_timeout(self.get_offset, 15)
+        except Exception as exc:
+            logger.warning(
+                "[LoadCell] Error reading initial offset — "
+                "falling back to emulation: %s",
+                exc,
+            )
+            self._activate_emulation()
+            return
         if offset == -1:
             logger.warning(
                 "[LoadCell] Timeout reading initial offset — "
@@ -122,6 +152,8 @@ class LoadCell:
             if data is not False and data != -1:
                 measures.append(data)
                 logger.debug(f"Offset measure {len(measures)}/{times}")
+            else:
+                time.sleep(0.01)
         return sum(measures) / len(measures)
 
     def tare(self) -> None:
@@ -132,6 +164,8 @@ class LoadCell:
         new_offset = _run_with_timeout(self.get_offset, 15)
         if new_offset != -1:
             self.offset = new_offset
+        else:
+            logger.warning("[LoadCell] tare timed out — offset unchanged")
 
     def get_weight(self) -> float:
         """Return the current weight in kg. Returns 0.0 on a bad read."""
