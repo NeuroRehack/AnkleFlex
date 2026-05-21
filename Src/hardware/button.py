@@ -18,6 +18,30 @@ logger = logging.getLogger("ankleflex.button")
 BUTTON_PIN = 17  # GPIO 17 / Board pin 11
 
 
+class MockGPIO:
+    """Minimal GPIO stub used when RPi.GPIO is unavailable."""
+
+    BCM = None
+    IN = None
+    PUD_UP = None
+    BOTH = None
+
+    def setmode(self, *a, **kw):
+        pass
+
+    def setup(self, *a, **kw):
+        pass
+
+    def add_event_detect(self, *a, **kw):
+        pass
+
+    def cleanup(self):
+        pass
+
+    def input(self, *a, **kw):
+        return 1
+
+
 class Button:
     """Button handler for AnkleFlex physical button."""
 
@@ -29,64 +53,41 @@ class Button:
             on_tare:  Optional callback invoked after a tare operation completes.
                       Called from the button thread — must be thread-safe.
         """
+        self.loadcell = loadcell
+        self.on_tare = on_tare
+        self._led = None
+        self._GPIO = None
+
         try:
             import RPi.GPIO as GPIO
-            EMULATION = False
             import led  # led.py is on sys.path via Src/
             self._GPIO = GPIO
             self._led = led
-            self.loadcell = loadcell
-            self.on_tare = on_tare
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=self._callback, bouncetime=100)
-            # Runtime hardware presence check: try to read pin state
             try:
                 _ = GPIO.setup(BUTTON_PIN, GPIO.IN)
-                # Try reading the pin (should not throw if present)
                 _ = GPIO.input(BUTTON_PIN)
             except Exception as e:
-                logger.warning(f"[Button] GPIO not detected or unresponsive: {e}. Falling back to emulation.")
-                EMULATION = True
-                # Minimal mock GPIO for emulation
-                class MockGPIO:
-                    BCM = None
-                    IN = None
-                    PUD_UP = None
-                    BOTH = None
-                    def setmode(self, *a, **kw): pass
-                    def setup(self, *a, **kw): pass
-                    def add_event_detect(self, *a, **kw): pass
-                    def cleanup(self): pass
-                    def input(self, *a, **kw): return 1
-                GPIO = MockGPIO()
-                self._GPIO = GPIO
-                logger.info("[EMULATION] Button using mock GPIO (runtime fallback)")
+                logger.warning(
+                    f"[Button] GPIO not detected or unresponsive: {e}. Falling back to emulation."
+                )
+                self._activate_emulation()
         except (ImportError, ModuleNotFoundError):
-            EMULATION = True
-            # Minimal mock GPIO for emulation
-            class MockGPIO:
-                BCM = None
-                IN = None
-                PUD_UP = None
-                BOTH = None
-                def setmode(self, *a, **kw): pass
-                def setup(self, *a, **kw): pass
-                def add_event_detect(self, *a, **kw): pass
-                def cleanup(self): pass
-                def input(self, *a, **kw): return 1
-            GPIO = MockGPIO()
-            import led  # led.py is on sys.path via Src/
-            self._GPIO = GPIO
-            self._led = led
-            self.loadcell = loadcell
-            self.on_tare = on_tare
-            logger.info("[EMULATION] Button using mock GPIO (import fallback)")
+            logger.info("[EMULATION] RPi.GPIO not available — using mock GPIO")
+            self._activate_emulation()
 
         self._last_press = time.time()
         self._mode = -1
         self._last_mode = -1
         self._last_mode_change = time.time()
+
+    def _activate_emulation(self) -> None:
+        self._GPIO = MockGPIO()
+        import led  # led.py is on sys.path via Src/
+        self._led = led
+        logger.info("[EMULATION] Button using mock GPIO")
 
     def run(self) -> None:
         """Blocking loop — call from a daemon thread."""
@@ -126,4 +127,5 @@ class Button:
 
     def cleanup(self) -> None:
         """Clean up GPIO resources for the button."""
-        self._GPIO.cleanup()
+        if self._GPIO is not None:
+            self._GPIO.cleanup()
