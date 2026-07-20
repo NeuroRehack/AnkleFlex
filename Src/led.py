@@ -9,6 +9,7 @@ logger = logging.getLogger("ankleflex.led")
 
 try:
     import RPi.GPIO as GPIO
+
     EMULATION = False
     # Set the GPIO mode
     GPIO.setmode(GPIO.BCM)
@@ -24,24 +25,32 @@ try:
             GPIO.output(LED_GPIO, GPIO.LOW)
         except Exception as e:
             global EMULATION
-            logger.warning(f"[LED] GPIO not detected or unresponsive: {e}. Falling back to emulation.")
+            logger.warning(
+                f"[LED] GPIO not detected or unresponsive: {e}. Falling back to emulation."
+            )
             EMULATION = True
+
             # Redefine all functions to emulation versions
             def emu_init_led():
                 logger.info("[EMULATION] LED init (noop)")
+
             def emu_turn_on_led():
                 logger.info("[EMULATION] LED on (noop)")
+
             def emu_turn_off_led():
                 logger.info("[EMULATION] LED off (noop)")
+
             def emu_blink_led():
                 logger.info("[EMULATION] LED blink (noop)")
+
             def emu_cleanup():
                 logger.info("[EMULATION] LED cleanup (noop)")
-            globals()['init_led'] = emu_init_led
-            globals()['turn_on_led'] = emu_turn_on_led
-            globals()['turn_off_led'] = emu_turn_off_led
-            globals()['blink_led'] = emu_blink_led
-            globals()['cleanup'] = emu_cleanup
+
+            globals()["init_led"] = emu_init_led
+            globals()["turn_on_led"] = emu_turn_on_led
+            globals()["turn_off_led"] = emu_turn_off_led
+            globals()["blink_led"] = emu_blink_led
+            globals()["cleanup"] = emu_cleanup
 
     def turn_on_led():
         GPIO.output(LED_GPIO, GPIO.HIGH)

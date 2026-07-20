@@ -26,10 +26,9 @@ def main() -> None:
     led.init_led()
     led.turn_on_led()
 
-
     loadcell = LoadCell(hx711=_hx711)
     loadcell.initialize()
-    emulation_mode = getattr(loadcell, 'emulation', False)
+    emulation_mode = getattr(loadcell, "emulation", False)
     configure(loadcell, emulate=emulation_mode)
 
     if not emulation_mode:

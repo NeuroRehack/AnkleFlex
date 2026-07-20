@@ -61,6 +61,7 @@ class Button:
         try:
             import RPi.GPIO as GPIO
             import led  # led.py is on sys.path via Src/
+
             self._GPIO = GPIO
             self._led = led
             GPIO.setmode(GPIO.BCM)
@@ -86,6 +87,7 @@ class Button:
     def _activate_emulation(self) -> None:
         self._GPIO = MockGPIO()
         import led  # led.py is on sys.path via Src/
+
         self._led = led
         logger.info("[EMULATION] Button using mock GPIO")
 
