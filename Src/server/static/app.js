@@ -198,6 +198,16 @@ function setConnected(connected) {
   }
 }
 
+// Reflects load-cell health, independent of the SSE/HTTP connection dot.
+// When the backend reports sensor_ok=false the value shown is the last good
+// reading (the backend holds it), and we surface a "reconnecting" badge.
+function setSensorHealth(ok) {
+  const el = document.getElementById("sensor-health");
+  if (!el) return;
+  el.hidden = !!ok;
+  document.body.classList.toggle("sensor-stale", !ok);
+}
+
 // ── SSE connection ────────────────────────────────────────────────────────────
 function connectStream() {
   const es = new EventSource("/stream");
@@ -209,8 +219,13 @@ function connectStream() {
       const incoming = JSON.parse(event.data);
       // Merge new state fields except history
       Object.assign(appState, incoming);
-      // If a new weight sample is present, append to history
-      if (typeof appState.weight === "number") {
+      // Load-cell health (defaults to OK if the backend omits the field).
+      const sensorOk = appState.sensor_ok !== false;
+      setSensorHealth(sensorOk);
+      // If a new weight sample is present, append to history — but skip while
+      // the sensor is stale so we don't draw a misleading flat line of the
+      // last-held value.
+      if (sensorOk && typeof appState.weight === "number") {
         if (Array.isArray(appState.history)) {
           const now = Date.now();
           const last = appState.history.length ? appState.history[appState.history.length - 1] : null;

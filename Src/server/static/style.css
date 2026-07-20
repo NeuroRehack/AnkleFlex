@@ -220,6 +220,28 @@ header h1 {
 .dot.connected    { background: #2dc653; }
 .dot.disconnected { background: var(--red); }
 
+#sensor-health {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  color: var(--red);
+  font-weight: 600;
+}
+
+#sensor-health[hidden] { display: none; }
+
+.dot.sensor-stale {
+  background: var(--red);
+  animation: sensor-pulse 1s ease-in-out infinite;
+}
+
+@keyframes sensor-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    NAV BAR
    ══════════════════════════════════════════════════════════════════════════ */
