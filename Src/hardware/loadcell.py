@@ -210,6 +210,20 @@ class LoadCell:
         """
         self.hx711.set_weight(kg)
 
+    def get_diagnostics(self) -> dict:
+        """Return low-level HX711 read/reset counters, if the driver exposes them.
+
+        ``SafeHX711`` provides ``stats_snapshot()``; emulated/dummy backends may
+        not, in which case an empty dict is returned.
+        """
+        snapshot = getattr(self.hx711, "stats_snapshot", None)
+        if callable(snapshot):
+            try:
+                return snapshot()
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("[LoadCell] stats_snapshot failed: %s", exc)
+        return {}
+
     def cleanup(self) -> None:
         """Clean up GPIO resources for the load cell."""
         if hasattr(self.hx711, "power_down"):

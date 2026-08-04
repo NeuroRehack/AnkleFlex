@@ -77,7 +77,7 @@ echo "    Hotspot profile created (activates on reboot)"
 # ── 4. Auto-start on boot (systemd service) ─────────────────────────────────
 echo "[4/4] Installing systemd service..."
 PYTHON="$REPO_DIR/.venv/bin/python"
-LOG="$HOME/ankleflex.log"
+APP_LOG="$REPO_DIR/logs/ankleflex.log"
 SERVICE_FILE="/etc/systemd/system/ankleflex.service"
 
 # Hotspot service: ensures wlan0 hotspot is up before the app starts
@@ -107,12 +107,19 @@ Wants=ankleflex-hotspot.service
 Type=simple
 User=$USER
 Environment=ANKLEFLEX_EMULATE_LOADCELL=1
+# Diagnostics: capture full HX711 read/failure detail to a size-bounded,
+# rotating log while we chase the field drop-outs. Set to 0 to quiet it later.
+Environment=ANKLEFLEX_HX711_DEBUG=1
+Environment=ANKLEFLEX_LOG_FILE=logs/ankleflex.log
 WorkingDirectory=$REPO_DIR
 ExecStart=$PYTHON Src/main.py
 Restart=always
 RestartSec=5
-StandardOutput=append:$LOG
-StandardError=append:$LOG
+# The app writes its own rotating file (logs/ankleflex.log, ~30 MB cap); send
+# stdout/stderr to the journal (also size-bounded) instead of an ever-growing
+# append file so nothing on disk can grow without limit.
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -134,6 +141,7 @@ echo "  After reboot:"
 echo "  • Join Wi-Fi:   SSID=AnkleFlex  password=starseng"
 echo "  • Open browser: http://10.42.0.1:8000/"
 echo "  • mDNS URL:     http://ankleflex.local:8000/"
-echo "  • View logs:    tail -f $LOG"
+echo "  • App log:      tail -f $APP_LOG   (rotating, ~30 MB cap)"
+echo "  • Service log:  journalctl -u ankleflex -f"
 echo "  • App status:   sudo systemctl status ankleflex"
 
